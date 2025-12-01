@@ -25,7 +25,6 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-slate-100 py-20 px-6">
-
       {/* HEADER */}
       <div className="max-w-6xl mx-auto text-center mb-14">
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">
@@ -38,8 +37,8 @@ export default function Pricing() {
 
       {/* PLANS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-10 max-w-6xl mx-auto">
-        {plans.map((p, index) => (
-          <PlanCard key={index} p={p} />
+        {plans.map((p) => (
+          <PlanCard key={p._id} p={p} />
         ))}
       </div>
     </div>
@@ -48,14 +47,31 @@ export default function Pricing() {
 
 /* INDIVIDUAL PLAN CARD */
 const PlanCard = ({ p }) => {
+  const handleSelect = async () => {
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(
+      `http://localhost:8080/user/select-plan/${p._id}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!res.ok) return alert("Failed to activate plan");
+
+    window.location.href = "/user/dashboard"; // 🚀 redirect
+  };
+
   return (
     <div
-      className={`
+      className="
         relative p-7 rounded-3xl shadow-xl border backdrop-blur-xl
         bg-gradient-to-br from-slate-50 to-slate-200
         hover:shadow-2xl hover:-translate-y-2 transition-all
-        w-full h-[520px] flex flex-col justify-between border-slate-300
-      `}
+        w-full h-[520px] flex flex-col justify-between border-slate-300"
     >
       {/* FEATURED BADGE */}
       {p.isFeatured && (
@@ -83,13 +99,17 @@ const PlanCard = ({ p }) => {
           <Feature text={p.apiAccess} />
           <Feature text={p.supportLevel} />
 
-          {p.features &&
-            p.features.map((f, i) => <Feature key={i} text={f} />)}
+          {p.features?.map((f, i) => (
+            <Feature key={i} text={f} />
+          ))}
         </div>
       </div>
 
       {/* CTA BUTTON */}
-      <button className="w-full py-3 bg-slate-900 text-white rounded-xl font-semibold shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-2">
+      <button
+        onClick={handleSelect}
+        className="w-full py-3 bg-slate-900 text-white rounded-xl font-semibold shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+      >
         Choose Plan <ArrowRightCircle size={20} />
       </button>
     </div>

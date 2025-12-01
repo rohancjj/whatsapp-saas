@@ -16,7 +16,7 @@ import { initWhatsApp,emitCurrentQR,IsWHConnected } from "./services/whatsappSer
 import { initializeGlobalWhatsApp } from "./services/whatsappManager.js";
 import authroutes from './routes/authroutes.js'
 import pricingroutes from './routes/pricingroutes.js'
-
+import userRoutes from "./routes/userRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,7 +33,7 @@ app.use(express.json());
 app.use('/api/v1',whatsappRoutes)
 app.use('/auth',authroutes)
 app.use("/pricing", pricingroutes);
-
+app.use("/user", userRoutes);
 
 connectDb();
 
@@ -56,6 +56,6 @@ app.get("/", (req, res) => {
   res.send("Hello world!");
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

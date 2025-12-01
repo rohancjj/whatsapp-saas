@@ -9,6 +9,7 @@ import AuthPage from "./website/pages/AuthPage";
 
 // USER
 import Pricing from "./website/pages/Pricing";
+import UserDashboard from "./website/pages/UserDashboard";
 import ProtectedUser from "./routes/ProtectedUser";
 
 // ADMIN
@@ -16,6 +17,7 @@ import ProtectedAdmin from "./routes/ProtectedAdmin";
 import AdminLayout from "./admin/layout/AdminLayout";
 import AdminDashboard from "./admin/AdminDashboard";
 import AdminOffers from "./admin/AdminOffers";
+
 import { Outlet } from "react-router-dom";
 
 export default function App() {
@@ -46,7 +48,7 @@ export default function App() {
             }
           />
 
-          {/* ================= USER ROUTES (FIXED) ================= */}
+          {/* ================= USER ROUTES (NESTED) ================= */}
           <Route
             path="/user"
             element={
@@ -56,6 +58,7 @@ export default function App() {
             }
           >
             <Route path="pricing" element={<Pricing />} />
+            <Route path="dashboard" element={<UserDashboard />} />
           </Route>
 
           {/* ================= ADMIN ROUTES ================= */}

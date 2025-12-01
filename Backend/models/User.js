@@ -7,9 +7,24 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
 
     phone: { type: String },
-    usageReason: { type: String }, 
+    usageReason: { type: String },
 
-    role: { type: String, default: "user" }, 
+    role: { type: String, default: "user" },
+
+    activePlan: {
+      planId: { type: mongoose.Schema.Types.ObjectId, ref: "Pricing" },
+      activatedAt: Date,
+      expiryAt: Date,
+
+      messagesUsed: { type: Number, default: 0 },
+      totalMessages: { type: Number, default: 0 },
+
+      apiKey: String, // ⭐ user API key for WhatsApp API
+
+      whatsappSession: String, // ⭐ Baileys session data
+      qrCode: String,          // ⭐ last QR code sent
+      isConnected: { type: Boolean, default: false }, // ⭐ connection status
+    },
   },
   { timestamps: true }
 );

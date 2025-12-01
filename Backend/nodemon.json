@@ -1,0 +1,13 @@
+{
+  "watch": ["./"],
+  "ext": "js,json",
+  "ignore": [
+    "auth_info*",
+    "session*",
+    "baileys_store*",
+    "tmp*",
+    "temp*",
+    "logs*",
+    "store*"
+  ]
+}
