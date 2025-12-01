@@ -1,68 +1,160 @@
 import React from "react";
-import { BarChart3, Users, Settings, DollarSign, CheckSquare, MessageSquare } from "lucide-react";
+import { motion } from "framer-motion";
+import {
+  Users,
+  DollarSign,
+  MessageCircle,
+  BarChart3,
+  Smartphone,
+  KeyRound,
+  Zap,
+  Activity,
+} from "lucide-react";
 
 export default function AdminDashboard() {
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+    <div className="space-y-10 animate-fadeIn">
 
-      {/* SIDEBAR */}
-      <aside className="w-72 bg-slate-900/90 backdrop-blur-xl border-r border-slate-700/50 p-6 flex flex-col shadow-xl">
-        <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">
-          WhatsAPI Admin
-        </h1>
+      {/* ========================= HEADER ========================= */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col"
+      >
+        <h1 className="text-3xl font-bold text-slate-800">Dashboard Overview</h1>
+        <p className="text-slate-500">Insights of WhatsAPI platform activity</p>
+      </motion.div>
 
-        <div className="mt-10 flex flex-col gap-3 text-slate-300">
-          <NavItem icon={<BarChart3 size={20} />} label="Dashboard" active />
-          <NavItem icon={<Users size={20} />} label="Users" />
-          <NavItem icon={<DollarSign size={20} />} label="Pricing Plans" />
-          <NavItem icon={<CheckSquare size={20} />} label="API Keys" />
-          <NavItem icon={<MessageSquare size={20} />} label="Support Tickets" />
-          <NavItem icon={<Settings size={20} />} label="Settings" />
-        </div>
-      </aside>
+      {/* ========================= TOP STATS ========================= */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
-      {/* MAIN CONTENT */}
-      <main className="flex-1 p-10">
-        <h2 className="text-4xl font-bold mb-8 tracking-tight">Dashboard Overview</h2>
+        <StatCard
+          title="Total Users"
+          value="1,204"
+          icon={<Users size={24} />}
+          color="from-green-500 to-emerald-600"
+        />
 
-        {/* STATS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-14">
-          <StatCard title="Total Users" value="1,204" change="+8%" />
-          <StatCard title="Paid Users" value="423" change="+12%" />
-          <StatCard title="Monthly Revenue" value="₹82,700" change="+15%" />
-        </div>
+        <StatCard
+          title="Active API Keys"
+          value="438"
+          icon={<KeyRound size={24} />}
+          color="from-blue-500 to-indigo-600"
+        />
 
-        {/* CHART AREA */}
-        <div className="bg-slate-900/50 border border-slate-700 rounded-3xl p-8 shadow-xl backdrop-blur-xl">
-          <h3 className="text-2xl font-semibold mb-4">API Usage Trend</h3>
+        <StatCard
+          title="Messages Sent (Today)"
+          value="32,890"
+          icon={<MessageCircle size={24} />}
+          color="from-amber-500 to-orange-600"
+        />
 
-          <div className="h-60 flex items-center justify-center text-slate-500">
-            {/* Placeholder for chart */}
-            <p className="text-slate-500">[ Chart Component Goes Here ]</p>
+        <StatCard
+          title="Monthly Revenue"
+          value="₹82,700"
+          icon={<DollarSign size={24} />}
+          color="from-teal-500 to-cyan-600"
+        />
+
+      </div>
+
+      {/* ========================= CHARTS SECTION ========================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        {/* API USAGE CHART */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white/70 backdrop-blur-lg rounded-3xl p-6 shadow-lg border border-slate-200"
+        >
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <Activity size={20} />
+            API Usage Trend
+          </h2>
+
+          <div className="h-56 flex items-center justify-center text-slate-400">
+            <p>[ API Usage Line Chart Here ]</p>
           </div>
+        </motion.div>
+
+        {/* MESSAGE ANALYTICS */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white/70 backdrop-blur-lg rounded-3xl p-6 shadow-lg border border-slate-200"
+        >
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <BarChart3 size={20} />
+            Message Analytics
+          </h2>
+
+          <div className="h-56 flex items-center justify-center text-slate-400">
+            <p>[ Messages Bar Chart Here ]</p>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* ========================= SYSTEM STATUS ========================= */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white/70 backdrop-blur-lg border border-slate-200 p-6 rounded-3xl shadow-lg"
+      >
+        <h2 className="text-xl font-semibold mb-5">System Status</h2>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+
+          <StatusCard
+            label="Baileys Server"
+            value="Online"
+            color="text-green-600"
+            icon={<Zap size={20} />}
+          />
+
+          <StatusCard
+            label="QR Sessions"
+            value="57 Active"
+            color="text-blue-600"
+            icon={<Smartphone size={20} />}
+          />
+
+          <StatusCard
+            label="API Response Time"
+            value="312ms"
+            color="text-orange-600"
+            icon={<Activity size={20} />}
+          />
+
         </div>
-      </main>
+      </motion.div>
+
     </div>
   );
 }
 
-/* COMPONENTS */
+/* ========================= COMPONENTS ========================= */
 
-const NavItem = ({ icon, label, active }) => (
-  <button
-    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all 
-      ${active ? "bg-slate-800 text-white shadow-lg" : "hover:bg-slate-800/50"}`
-    }
+const StatCard = ({ title, value, icon, color }) => (
+  <motion.div
+    whileHover={{ scale: 1.03 }}
+    className={`rounded-3xl p-6 shadow-lg bg-gradient-to-br ${color} text-white flex flex-col gap-3`}
   >
-    {icon}
-    <span className="font-medium">{label}</span>
-  </button>
+    <div className="flex items-center justify-between">
+      <h3 className="text-sm font-medium opacity-90">{title}</h3>
+      <div className="p-2 bg-white/20 rounded-xl">{icon}</div>
+    </div>
+    <h2 className="text-3xl font-bold">{value}</h2>
+  </motion.div>
 );
 
-const StatCard = ({ title, value, change }) => (
-  <div className="bg-slate-900/40 border border-slate-700 p-6 rounded-3xl backdrop-blur-xl shadow-lg hover:shadow-2xl transition-all">
-    <p className="text-slate-400 text-sm">{title}</p>
-    <h3 className="text-3xl font-bold mt-2">{value}</h3>
-    <p className="text-emerald-400 text-sm mt-1">{change}</p>
+const StatusCard = ({ label, value, icon, color }) => (
+  <div className="p-5 bg-slate-100 rounded-2xl shadow-sm flex items-center gap-4">
+    <div className="p-3 bg-white rounded-xl border border-slate-200 shadow text-slate-600">
+      {icon}
+    </div>
+    <div>
+      <p className="text-sm text-slate-500">{label}</p>
+      <p className={`text-lg font-bold ${color}`}>{value}</p>
+    </div>
   </div>
 );

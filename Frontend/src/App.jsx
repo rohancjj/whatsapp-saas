@@ -8,61 +8,71 @@ import NavBar from "./website/pages/NavBar";
 import AuthPage from "./website/pages/AuthPage";
 
 // USER
-// import UserDashboard from "./user/pages/UserDashboard";
 import Pricing from "./website/pages/Pricing";
+import ProtectedUser from "./routes/ProtectedUser";
 
 // ADMIN
-import AdminDashboard from "./admin/AdminDashboard";
-
-// PROTECTED ROUTES
-import ProtectedUser from "./routes/ProtectedUser";
 import ProtectedAdmin from "./routes/ProtectedAdmin";
+import AdminLayout from "./admin/layout/AdminLayout";
+import AdminDashboard from "./admin/AdminDashboard";
+import AdminOffers from "./admin/AdminOffers";
+import { Outlet } from "react-router-dom";
 
 export default function App() {
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-slate-50">
 
-        {/* Navbar only for website + auth */}
         <Routes>
+
+          {/* ================= WEBSITE ROUTES ================= */}
           <Route
-            path="/*"
+            path="/"
             element={
               <>
                 <NavBar />
-                <Routes>
-                  <Route path="/" element={<LandingPage />} />
-                  <Route path="/auth" element={<AuthPage />} />
-                </Routes>
+                <LandingPage />
               </>
             }
           />
 
-          {/* USER ROUTES */}
           <Route
-            path="/user/*"
+            path="/auth"
             element={
-              <ProtectedUser>
-                <Routes>
-                  {/* <Route path="dashboard" element={<UserDashboard />} /> */}
-                  <Route path="pricing" element={<Pricing />} />
-                </Routes>
-              </ProtectedUser>
+              <>
+                <NavBar />
+                <AuthPage />
+              </>
             }
           />
 
-          {/* ADMIN ROUTES */}
+          {/* ================= USER ROUTES (FIXED) ================= */}
           <Route
-            path="/admin/*"
+            path="/user"
+            element={
+              <ProtectedUser>
+                <Outlet />
+              </ProtectedUser>
+            }
+          >
+            <Route path="pricing" element={<Pricing />} />
+          </Route>
+
+          {/* ================= ADMIN ROUTES ================= */}
+          <Route
+            path="/admin"
             element={
               <ProtectedAdmin>
-                <Routes>
-                  <Route path="dashboard" element={<AdminDashboard />} />
-                </Routes>
+                <AdminLayout />
               </ProtectedAdmin>
             }
-          />
+          >
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="offers" element={<AdminOffers />} />
+          </Route>
+
         </Routes>
+
       </div>
     </BrowserRouter>
   );
