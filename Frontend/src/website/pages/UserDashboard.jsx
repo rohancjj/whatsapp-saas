@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Container,
   Typography,
@@ -13,14 +13,17 @@ import {
   Alert,
   Tabs,
   Tab,
-  Chip,
   Divider,
   Tooltip,
+  TextField,
 } from "@mui/material";
 import axios from "axios";
 import { io } from "socket.io-client";
 import QRCode from "qrcode";
 
+// ----------------------------
+// Tab Panel
+// ----------------------------
 function TabPanel({ children, value, index }) {
   return (
     <div hidden={value !== index} style={{ paddingTop: 20 }}>
@@ -29,6 +32,9 @@ function TabPanel({ children, value, index }) {
   );
 }
 
+// ----------------------------
+// MAIN COMPONENT
+// ----------------------------
 const UserDashboard = () => {
   const [whatsAppQR, setWhatsAppQR] = useState(null);
   const [whatsAppConnected, setWhatsAppConnected] = useState(false);
@@ -41,60 +47,79 @@ const UserDashboard = () => {
   const [phoneNumber, setPhoneNumber] = useState(null);
   const [loadingApiKey, setLoadingApiKey] = useState(false);
 
-  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
   const [tabValue, setTabValue] = useState(0);
 
-  // Get userId from JWT
+  // *** NEW STATE FOR CHATTING ***
+  const [messageToSend, setMessageToSend] = useState("");
+  const [recipientNumber, setRecipientNumber] = useState("");
+  const [chatMessages, setChatMessages] = useState([]);
+
+  const messagesEndRef = useRef(null);
+
+  // Auto scroll chat
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+  useEffect(scrollToBottom, [chatMessages]);
+
+  // -------------------------
+  // JWT USER ID
+  // -------------------------
   const getUserId = () => {
     const token = localStorage.getItem("token");
     if (!token) return null;
     return JSON.parse(atob(token.split(".")[1])).id;
   };
-
   const userId = getUserId();
 
-  // Show notification
   const showSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
   };
 
-  // Copy to clipboard
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    showSnackbar("Copied to clipboard!", "success");
-  };
-
-  // Fetch API Key
+  // ----------------------------
+  // Fetch API KEY
+  // ----------------------------
   const fetchApiKey = async () => {
     try {
       setLoadingApiKey(true);
       const token = localStorage.getItem("token");
-      const { data } = await axios.get("http://localhost:8080/api/v1/whatsapp/api-key", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const { data } = await axios.get(
+        "http://localhost:8080/api/v1/whatsapp/api-key",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
       setApiKey(data.apiKey);
       setWhatsAppConnected(data.connected);
       setPhoneNumber(data.phoneNumber);
     } catch (err) {
-      console.error("Failed to fetch API key", err);
-      if (err.response?.status !== 400) {
-        showSnackbar("Failed to fetch API key", "error");
-      }
+      console.error("API key fetch error", err);
+      showSnackbar("Failed to fetch API key", "error");
     } finally {
       setLoadingApiKey(false);
     }
   };
 
+  // ----------------------------
   // Regenerate API Key
+  // ----------------------------
   const regenerateApiKey = async () => {
-    if (!window.confirm("⚠️ This will invalidate your current API key. All applications using it will stop working. Continue?")) {
+    if (
+      !window.confirm(
+        "⚠️ Regenerate key? All apps using current key will stop working."
+      )
+    )
       return;
-    }
 
     try {
       setLoadingApiKey(true);
       const token = localStorage.getItem("token");
+
       const { data } = await axios.post(
         "http://localhost:8080/api/v1/whatsapp/regenerate-key",
         {},
@@ -102,16 +127,18 @@ const UserDashboard = () => {
       );
 
       setApiKey(data.apiKey);
-      showSnackbar("API Key regenerated successfully!", "success");
+      showSnackbar("API Key regenerated!", "success");
     } catch (err) {
-      console.error("Failed to regenerate API key", err);
+      console.error(err);
       showSnackbar("Failed to regenerate API key", "error");
     } finally {
       setLoadingApiKey(false);
     }
   };
 
-  // Start WhatsApp Linking
+  // ----------------------------
+  // Start WA Linking
+  // ----------------------------
   const startWhatsAppLink = async () => {
     try {
       setLoadingQR(true);
@@ -123,91 +150,62 @@ const UserDashboard = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      if (data.apiKey) {
-        setApiKey(data.apiKey);
-      }
-      showSnackbar("Generating QR code...", "info");
+      if (data.apiKey) setApiKey(data.apiKey);
+
+      showSnackbar("Generating QR...", "info");
     } catch (err) {
-      console.error("WhatsApp link start failed", err);
-      showSnackbar(err.response?.data?.message || "Failed to start linking", "error");
+      console.error(err);
+      showSnackbar("Failed to start linking", "error");
       setLoadingQR(false);
     }
   };
 
-  const codeExamples = {
-    javascript: `// JavaScript / Node.js
-async function sendWhatsAppMessage(to, text) {
-  const response = await fetch('http://localhost:8080/api/v1/whatsapp/send', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': '${apiKey || 'YOUR_API_KEY'}'
-    },
-    body: JSON.stringify({ to, text })
-  });
-  return await response.json();
-}
-
-// Usage
-sendWhatsAppMessage('919876543210', 'Hello!')
-  .then(data => console.log('Success:', data))
-  .catch(error => console.error('Error:', error));`,
-
-    python: `# Python
-import requests
-
-def send_whatsapp_message(to, text):
-    url = 'http://localhost:8080/api/v1/whatsapp/send'
-    headers = {
-        'Content-Type': 'application/json',
-        'x-api-key': '${apiKey || 'YOUR_API_KEY'}'
+  // ============================================================
+  // NEW: SEND MESSAGE FROM DASHBOARD
+  // ============================================================
+  const sendMessage = async () => {
+    if (!recipientNumber || !messageToSend) {
+      showSnackbar("Please enter number & message", "warning");
+      return;
     }
-    data = {'to': to, 'text': text}
-    response = requests.post(url, json=data, headers=headers)
-    return response.json()
 
-# Usage
-result = send_whatsapp_message('919876543210', 'Hello!')
-print(result)`,
+    try {
+      const res = await axios.post(
+        "http://localhost:8080/api/v1/whatsapp/send",
+        { to: recipientNumber, text: messageToSend },
+        { headers: { "x-api-key": apiKey } }
+      );
 
-    php: `<?php
-// PHP
-function sendWhatsAppMessage($to, $text) {
-    $url = 'http://localhost:8080/api/v1/whatsapp/send';
-    $data = json_encode(['to' => $to, 'text' => $text]);
-    $options = [
-        'http' => [
-            'header' => "Content-Type: application/json\\r\\n" .
-                       "x-api-key: ${apiKey || 'YOUR_API_KEY'}\\r\\n",
-            'method' => 'POST',
-            'content' => $data
-        ]
-    ];
-    $context = stream_context_create($options);
-    return json_decode(file_get_contents($url, false, $context), true);
-}
+      setChatMessages((prev) => [
+        ...prev,
+        { from: "you", text: messageToSend, timestamp: new Date() },
+      ]);
 
-$result = sendWhatsAppMessage('919876543210', 'Hello!');
-?>`,
+      setMessageToSend("");
 
-    curl: `curl -X POST http://localhost:8080/api/v1/whatsapp/send \\
-  -H "Content-Type: application/json" \\
-  -H "x-api-key: ${apiKey || 'YOUR_API_KEY'}" \\
-  -d '{"to": "919876543210", "text": "Hello!"}'`
+      showSnackbar("Message sent!", "success");
+    } catch (err) {
+      console.error(err);
+      showSnackbar("Failed to send message", "error");
+    }
   };
 
+  // ============================================================
+  // SOCKET CONNECTION
+  // ============================================================
   useEffect(() => {
     const token = localStorage.getItem("token");
 
-    // Fetch Active Plan
+    // Fetch Plan
     const fetchPlan = async () => {
       try {
-        const { data } = await axios.get("http://localhost:8080/user/active-plan", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const { data } = await axios.get(
+          "http://localhost:8080/user/active-plan",
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
         setActivePlan(data);
       } catch (err) {
-        console.error("Failed to fetch plan", err);
+        console.error(err);
       } finally {
         setLoadingPlan(false);
       }
@@ -216,31 +214,28 @@ $result = sendWhatsAppMessage('919876543210', 'Hello!');
     fetchPlan();
     fetchApiKey();
 
-    // Socket.io Connection
     const socket = io("http://localhost:8080");
 
     socket.on("connect", () => {
-      console.log("Socket connected:", socket.id);
-      if (userId) {
-        socket.emit("join", userId);
-      }
+      console.log("Socket connected");
+      if (userId) socket.emit("join", userId);
     });
 
+    // QR
     socket.on("qr", async (qrString) => {
-      console.log("QR received for user");
       const dataUrl = await QRCode.toDataURL(qrString);
       setWhatsAppQR(dataUrl);
       setWhatsAppConnected(false);
       setLoadingQR(false);
     });
 
+    // Connected
     socket.on("whatsapp_connected", (data) => {
-      console.log("WhatsApp connected!");
       setWhatsAppConnected(true);
       setWhatsAppQR(null);
       setLoadingQR(false);
       if (data?.phoneNumber) setPhoneNumber(data.phoneNumber);
-      showSnackbar("WhatsApp connected successfully!", "success");
+      showSnackbar("WhatsApp connected!", "success");
       fetchApiKey();
     });
 
@@ -251,233 +246,223 @@ $result = sendWhatsAppMessage('919876543210', 'Hello!');
       showSnackbar("WhatsApp disconnected", "warning");
     });
 
+    // ================================
+    // 📩 NEW — RECEIVE MESSAGES
+    // ================================
+    socket.on("incoming_message", (msg) => {
+      console.log("Incoming:", msg);
+
+      setChatMessages((prev) => [...prev, msg]);
+    });
+
     return () => socket.disconnect();
   }, [userId]);
 
+  // ============================================================
+  // UI BELOW
+  // ============================================================
   return (
     <Container maxWidth="lg" sx={{ py: 5 }}>
-      <Typography variant="h4" fontWeight={700} sx={{ mb: 4, textAlign: "center" }}>
+      <Typography
+        variant="h4"
+        fontWeight={700}
+        sx={{ mb: 4, textAlign: "center" }}
+      >
         📱 User Dashboard
       </Typography>
 
       <Grid container spacing={3}>
-        {/* Active Plan Card */}
+        {/* ----------- Subscription ----------- */}
         <Grid item xs={12} md={4}>
-          <Card sx={{ borderRadius: 4, height: "100%", background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "white" }}>
+          <Card
+            sx={{
+              borderRadius: 4,
+              height: "100%",
+              color: "white",
+              background:
+                "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            }}
+          >
             <CardContent>
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                💳 Subscription
-              </Typography>
+              <Typography variant="h6">💳 Subscription</Typography>
               {loadingPlan ? (
                 <CircularProgress sx={{ color: "white" }} />
               ) : activePlan ? (
                 <Box>
-                  <Typography fontWeight={600} sx={{ fontSize: "1.2rem", mb: 1 }}>
-                    {activePlan.name}
+                  <Typography variant="h6">{activePlan.name}</Typography>
+                  <Typography>
+                    💬 {activePlan.messagesUsed}/{activePlan.totalMessages}
                   </Typography>
-                  <Typography sx={{ opacity: 0.9, mb: 1 }}>
-                    💬 {activePlan.messagesUsed || 0} / {activePlan.totalMessages}
-                  </Typography>
-                  <Typography sx={{ opacity: 0.9 }}>
+                  <Typography>
                     📅 {new Date(activePlan.expiryAt).toLocaleDateString()}
                   </Typography>
                 </Box>
               ) : (
-                <Typography>No active plan</Typography>
+                "No active plan"
               )}
             </CardContent>
           </Card>
         </Grid>
 
-        {/* WhatsApp Status Card */}
+        {/* ----------- WhatsApp Status ----------- */}
         <Grid item xs={12} md={4}>
-          <Card sx={{ borderRadius: 4, height: "100%", background: whatsAppConnected ? "linear-gradient(135deg, #25D366 0%, #128C7E 100%)" : "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", color: "white" }}>
+          <Card
+            sx={{
+              borderRadius: 4,
+              height: "100%",
+              color: "white",
+              background: whatsAppConnected
+                ? "linear-gradient(135deg, #25D366 0%, #128C7E 100%)"
+                : "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+            }}
+          >
             <CardContent>
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                📱 WhatsApp
-              </Typography>
+              <Typography variant="h6">📱 WhatsApp</Typography>
               {whatsAppConnected ? (
-                <Box>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                    ✅
-                    <Typography fontWeight={600} sx={{ fontSize: "1.2rem" }}>
-                      Connected
-                    </Typography>
-                  </Box>
-                  {phoneNumber && (
-                    <Typography sx={{ opacity: 0.9 }}>
-                      +{phoneNumber}
-                    </Typography>
-                  )}
-                </Box>
+                <>
+                  <Typography variant="h6">Connected</Typography>
+                  {phoneNumber && <Typography>+{phoneNumber}</Typography>}
+                </>
               ) : (
-                <Box>
-                  <Typography fontWeight={600} sx={{ fontSize: "1.2rem", mb: 1 }}>
-                    Not Connected
-                  </Typography>
-                  <Typography sx={{ opacity: 0.9, fontSize: "0.9rem" }}>
-                    Link WhatsApp below
-                  </Typography>
-                </Box>
+                "Not Connected"
               )}
             </CardContent>
           </Card>
         </Grid>
 
-        {/* API Status Card */}
+        {/* ----------- API Key Status ----------- */}
         <Grid item xs={12} md={4}>
-          <Card sx={{ borderRadius: 4, height: "100%", background: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)", color: "white" }}>
+          <Card
+            sx={{
+              borderRadius: 4,
+              height: "100%",
+              color: "white",
+              background:
+                "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+            }}
+          >
             <CardContent>
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                🔑 API Key
-              </Typography>
+              <Typography variant="h6">🔑 API Key</Typography>
               {apiKey ? (
-                <Box>
-                  <Typography fontWeight={600} sx={{ fontSize: "1.2rem", mb: 1 }}>
-                    Active
-                  </Typography>
-                  <Typography sx={{ opacity: 0.9, fontSize: "0.85rem", fontFamily: "monospace" }}>
-                    {apiKey.substring(0, 20)}...
-                  </Typography>
-                </Box>
+                <Typography>{apiKey.substring(0, 20)}...</Typography>
               ) : (
-                <Box>
-                  <Typography fontWeight={600} sx={{ fontSize: "1.2rem", mb: 1 }}>
-                    Not Generated
-                  </Typography>
-                  <Typography sx={{ opacity: 0.9, fontSize: "0.9rem" }}>
-                    Activate plan first
-                  </Typography>
-                </Box>
+                "Not Generated"
               )}
             </CardContent>
           </Card>
         </Grid>
 
-        {/* API Key Management */}
+        {/* ----------- Send Message + Incoming Messages ----------- */}
         <Grid item xs={12}>
           <Card sx={{ borderRadius: 4 }}>
             <CardContent>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-                <Box>
-                  <Typography variant="h6" fontWeight={600}>
-                    🔑 API Key Management
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Use this key to send WhatsApp messages from your application
-                  </Typography>
-                </Box>
-                <Tooltip title="Regenerate API Key">
-                  <IconButton onClick={regenerateApiKey} disabled={loadingApiKey || !apiKey} color="primary">
-                    🔄
-                  </IconButton>
-                </Tooltip>
-              </Box>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                💬 WhatsApp Messaging
+              </Typography>
 
-              <Divider sx={{ my: 2 }} />
-
-              {loadingApiKey ? (
-                <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
-                  <CircularProgress />
-                </Box>
-              ) : apiKey ? (
-                <Box>
-                  <Box sx={{ p: 2, borderRadius: 2, background: "#f5f5f7", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2, mb: 2 }}>
-                    <Typography sx={{ fontFamily: "monospace", wordBreak: "break-all", flex: 1, fontSize: "0.95rem" }}>
-                      {apiKey}
-                    </Typography>
-                    <IconButton onClick={() => copyToClipboard(apiKey)} color="primary">
-                      📋
-                    </IconButton>
-                  </Box>
-
-                  <Alert severity="warning" sx={{ mb: 2 }}>
-                    <strong>Keep this secure!</strong> Anyone with this key can send messages through your WhatsApp.
-                  </Alert>
-
-                  {/* Code Examples Tabs */}
-                  <Box sx={{ mt: 3 }}>
-                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-                      Integration Examples:
-                    </Typography>
-
-                    <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)} sx={{ mb: 2 }}>
-                      <Tab label="JavaScript" />
-                      <Tab label="Python" />
-                      <Tab label="PHP" />
-                      <Tab label="cURL" />
-                    </Tabs>
-
-                    <TabPanel value={tabValue} index={0}>
-                      <Box sx={{ position: "relative", background: "#1a202c", color: "#68d391", p: 3, borderRadius: 2, overflow: "auto" }}>
-                        <IconButton sx={{ position: "absolute", top: 10, right: 10, color: "#68d391" }} onClick={() => copyToClipboard(codeExamples.javascript)}>
-                          📋
-                        </IconButton>
-                        <pre style={{ margin: 0, fontFamily: "monospace", fontSize: "0.85rem", lineHeight: 1.5 }}>
-                          {codeExamples.javascript}
-                        </pre>
-                      </Box>
-                    </TabPanel>
-
-                    <TabPanel value={tabValue} index={1}>
-                      <Box sx={{ position: "relative", background: "#1a202c", color: "#68d391", p: 3, borderRadius: 2, overflow: "auto" }}>
-                        <IconButton sx={{ position: "absolute", top: 10, right: 10, color: "#68d391" }} onClick={() => copyToClipboard(codeExamples.python)}>
-                          📋
-                        </IconButton>
-                        <pre style={{ margin: 0, fontFamily: "monospace", fontSize: "0.85rem", lineHeight: 1.5 }}>
-                          {codeExamples.python}
-                        </pre>
-                      </Box>
-                    </TabPanel>
-
-                    <TabPanel value={tabValue} index={2}>
-                      <Box sx={{ position: "relative", background: "#1a202c", color: "#68d391", p: 3, borderRadius: 2, overflow: "auto" }}>
-                        <IconButton sx={{ position: "absolute", top: 10, right: 10, color: "#68d391" }} onClick={() => copyToClipboard(codeExamples.php)}>
-                          📋
-                        </IconButton>
-                        <pre style={{ margin: 0, fontFamily: "monospace", fontSize: "0.85rem", lineHeight: 1.5 }}>
-                          {codeExamples.php}
-                        </pre>
-                      </Box>
-                    </TabPanel>
-
-                    <TabPanel value={tabValue} index={3}>
-                      <Box sx={{ position: "relative", background: "#1a202c", color: "#68d391", p: 3, borderRadius: 2, overflow: "auto" }}>
-                        <IconButton sx={{ position: "absolute", top: 10, right: 10, color: "#68d391" }} onClick={() => copyToClipboard(codeExamples.curl)}>
-                          📋
-                        </IconButton>
-                        <pre style={{ margin: 0, fontFamily: "monospace", fontSize: "0.85rem", lineHeight: 1.5 }}>
-                          {codeExamples.curl}
-                        </pre>
-                      </Box>
-                    </TabPanel>
-                  </Box>
-                </Box>
-              ) : (
-                <Alert severity="info">
-                  Please activate a plan to get your API key
+              {!whatsAppConnected ? (
+                <Alert severity="warning">
+                  Connect WhatsApp to start messaging.
                 </Alert>
+              ) : (
+                <>
+                  {/* SEND MESSAGE */}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      gap: 2,
+                      mb: 3,
+                    }}
+                  >
+                    <TextField
+                      label="Phone Number (with country code)"
+                      value={recipientNumber}
+                      onChange={(e) => setRecipientNumber(e.target.value)}
+                      fullWidth
+                    />
+                    <TextField
+                      label="Message"
+                      value={messageToSend}
+                      onChange={(e) => setMessageToSend(e.target.value)}
+                      fullWidth
+                    />
+                    <Button
+                      variant="contained"
+                      onClick={sendMessage}
+                      sx={{ height: 55 }}
+                    >
+                      Send
+                    </Button>
+                  </Box>
+
+                  {/* CHAT BOX */}
+                  <Box
+                    sx={{
+                      height: 300,
+                      overflowY: "auto",
+                      borderRadius: 2,
+                      border: "1px solid #ddd",
+                      p: 2,
+                      background: "#fafafa",
+                    }}
+                  >
+                    {chatMessages.map((msg, i) => (
+                      <Box
+                        key={i}
+                        sx={{
+                          display: "flex",
+                          justifyContent:
+                            msg.from === "you" ? "flex-end" : "flex-start",
+                          mb: 1,
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            px: 2,
+                            py: 1,
+                            borderRadius: 2,
+                            maxWidth: "60%",
+                            background:
+                              msg.from === "you" ? "#d1f7c4" : "#e0e0e0",
+                          }}
+                        >
+                          <Typography variant="body2">{msg.text}</Typography>
+                          <Typography
+                            variant="caption"
+                            sx={{ color: "gray" }}
+                          >
+                            {new Date(msg.timestamp).toLocaleTimeString()}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </Box>
+                </>
               )}
             </CardContent>
           </Card>
         </Grid>
 
-        {/* WhatsApp Connection */}
+        {/* ----------- WhatsApp QR Card ----------- */}
         <Grid item xs={12}>
           <Card sx={{ borderRadius: 4, textAlign: "center" }}>
             <CardContent>
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                {whatsAppConnected ? "✅ WhatsApp Connected" : "🔗 Connect WhatsApp"}
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                {whatsAppConnected
+                  ? "✅ WhatsApp Connected"
+                  : "🔗 Connect WhatsApp"}
               </Typography>
 
               {!whatsAppConnected && (
                 <Button
                   variant="contained"
                   sx={{
-                    mt: 2, mb: 2, px: 4, py: 1.5, borderRadius: 3,
-                    background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
-                    fontSize: "1rem", fontWeight: 600,
-                    "&:hover": { background: "linear-gradient(135deg, #128C7E 0%, #075E54 100%)" }
+                    mt: 2,
+                    mb: 2,
+                    px: 4,
+                    py: 1.5,
+                    borderRadius: 3,
                   }}
                   onClick={startWhatsAppLink}
                   disabled={!activePlan || loadingQR}
@@ -486,34 +471,24 @@ $result = sendWhatsAppMessage('919876543210', 'Hello!');
                 </Button>
               )}
 
+              {/* QR / CONNECT STATUS */}
               {loadingQR ? (
-                <Box sx={{ py: 3 }}>
-                  <CircularProgress />
-                  <Typography sx={{ mt: 2 }}>Generating QR code...</Typography>
-                </Box>
+                <CircularProgress />
               ) : whatsAppConnected ? (
-                <Box sx={{ py: 3 }}>
-                  <Box sx={{ fontSize: 60, mb: 2 }}>✅</Box>
-                  <Typography variant="h6" color="success.main" fontWeight={600}>
-                    WhatsApp Connected!
-                  </Typography>
-                  {phoneNumber && (
-                    <Typography sx={{ mt: 1 }}>Number: +{phoneNumber}</Typography>
-                  )}
-                </Box>
+                <Typography sx={{ mt: 2 }}>Connected</Typography>
               ) : whatsAppQR ? (
-                <Box sx={{ py: 2 }}>
-                  <Typography sx={{ mb: 2, color: "text.secondary" }}>
-                    Open WhatsApp → Settings → Linked Devices → Link a Device
+                <>
+                  <Typography sx={{ mb: 2 }}>
+                    Scan QR in WhatsApp → Linked Devices
                   </Typography>
-                  <img src={whatsAppQR} alt="QR" style={{ width: 280, height: 280, borderRadius: 20, boxShadow: "0px 6px 25px rgba(0,0,0,0.15)" }} />
-                </Box>
+                  <img
+                    src={whatsAppQR}
+                    alt="qr"
+                    style={{ width: 260, borderRadius: 10 }}
+                  />
+                </>
               ) : (
-                !whatsAppConnected && (
-                  <Typography sx={{ mt: 2, color: "text.secondary" }}>
-                    {activePlan ? "Click the button above to start" : "Activate a plan first"}
-                  </Typography>
-                )
+                <Typography>Click "Connect WhatsApp"</Typography>
               )}
             </CardContent>
           </Card>
@@ -523,13 +498,10 @@ $result = sendWhatsAppMessage('919876543210', 'Hello!');
       {/* Snackbar */}
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={4000}
+        autoHideDuration={3000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
-        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: "100%" }}>
-          {snackbar.message}
-        </Alert>
+        <Alert severity={snackbar.severity}>{snackbar.message}</Alert>
       </Snackbar>
     </Container>
   );
