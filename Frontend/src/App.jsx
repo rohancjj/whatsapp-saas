@@ -17,6 +17,7 @@ import ProtectedAdmin from "./routes/ProtectedAdmin";
 import AdminLayout from "./admin/layout/AdminLayout";
 import AdminDashboard from "./admin/AdminDashboard";
 import AdminOffers from "./admin/AdminOffers";
+import UserManagement from "./admin/UserManagement";
 
 import { Outlet } from "react-router-dom";
 
@@ -72,6 +73,7 @@ export default function App() {
           >
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="offers" element={<AdminOffers />} />
+            <Route path="users" element={<UserManagement />} />  {/* ⭐ NEW */}
           </Route>
 
         </Routes>

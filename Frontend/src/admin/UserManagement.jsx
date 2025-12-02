@@ -30,8 +30,9 @@ export default function UserManagement() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      setUsers(res.data.users);
-      setFiltered(res.data.users);
+      // ✅ FIXED (your backend returns an array)
+      setUsers(res.data || []);
+      setFiltered(res.data || []);
       setLoading(false);
 
     } catch (err) {
@@ -131,7 +132,9 @@ export default function UserManagement() {
                 <td>
                   {user.activePlan ? (
                     <div>
-                      <p className="font-semibold">{user.activePlan.planId || "No Plan Name"}</p>
+                      <p className="font-semibold">
+                        {user.activePlan.planId || "No Plan Name"}
+                      </p>
                       <p className="text-xs text-slate-500">
                         Used {user.activePlan.messagesUsed}/{user.activePlan.totalMessages}
                       </p>
@@ -178,6 +181,7 @@ export default function UserManagement() {
                     {user.activePlan?.messagesUsed || 0}
                   </div>
                 </td>
+
               </motion.tr>
             ))}
           </tbody>
