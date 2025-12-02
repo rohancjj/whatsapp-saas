@@ -1,13 +1,12 @@
 {
-  "watch": ["./"],
-  "ext": "js,json",
+  "watch": ["."],
   "ignore": [
-    "auth_info*",
-    "session*",
-    "baileys_store*",
-    "tmp*",
-    "temp*",
-    "logs*",
-    "store*"
-  ]
+    "auth_info_multi/**",
+    "wa_sessions/**",
+    "auth_info_multi",
+    "wa_sessions",
+    "qr_base64.txt",
+    "node_modules"
+  ],
+  "ext": "js,mjs,json"
 }

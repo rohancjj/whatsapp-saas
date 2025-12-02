@@ -1,137 +1,398 @@
+// services/whatsappManager.js
 import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
+  fetchLatestBaileysVersion,
+  makeCacheableSignalKeyStore,
 } from "@whiskeysockets/baileys";
-
 import fs from "fs";
 import path from "path";
+import { Boom } from "@hapi/boom";
 import WhatsAppSession from "../models/WhatsAppSession.js";
 
-const SESSIONS_DIR = path.join(process.cwd(), "wa_sessions");
+// Helper to get status code from disconnect error
+const getStatusCode = (lastDisconnect) => {
+  if (!lastDisconnect?.error) return null;
+  
+  // Try Boom error format
+  if (lastDisconnect.error.output?.statusCode) {
+    return lastDisconnect.error.output.statusCode;
+  }
+  
+  // Try direct statusCode
+  if (lastDisconnect.error.statusCode) {
+    return lastDisconnect.error.statusCode;
+  }
+  
+  // Try error code from attrs
+  if (lastDisconnect.error.data?.attrs?.code) {
+    return parseInt(lastDisconnect.error.data.attrs.code);
+  }
+  
+  return null;
+};
 
-// Ensure base folder exists
+const SESSIONS_DIR = path.join(process.cwd(), "wa_sessions");
 if (!fs.existsSync(SESSIONS_DIR)) {
-  fs.mkdirSync(SESSIONS_DIR);
+  fs.mkdirSync(SESSIONS_DIR, { recursive: true });
 }
 
-// Store all active sockets in memory
-const userSockets = {};
+// In-memory storage
+const userSockets = {};      // userId -> sock
+const userInitializers = {}; // userId -> Promise
+const reconnectTimeouts = {}; // userId -> timeout
 
 export const getUserSock = (userId) => userSockets[userId];
 
 /**
- * Create WhatsApp instance for a user
+ * Clear and reset session files for a user
  */
-export const createInstanceForUser = async (io, user) => {
+const clearSession = (userId) => {
+  const sessionPath = path.join(SESSIONS_DIR, userId);
   try {
-    const userId = user._id.toString();
-    const sessionPath = path.join(SESSIONS_DIR, userId);
-
-    console.log("🟦 Creating WhatsApp instance for user:", userId);
-
-    // Ensure the folder exists for Baileys
-    if (!fs.existsSync(sessionPath)) {
-      fs.mkdirSync(sessionPath, { recursive: true });
+    if (fs.existsSync(sessionPath)) {
+      fs.rmSync(sessionPath, { recursive: true, force: true });
+      console.log(`🗑️ Cleared session files for user: ${userId}`);
     }
-
-    // Load session (or create new)
-    const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-
-    const sock = makeWASocket({
-      printQRInTerminal: false,
-      auth: state,
-      browser: ["SaaS Platform", "Chrome", "1.0"],
-    });
-
-    userSockets[userId] = sock;
-
-    // SOCKET EVENTS
-    sock.ev.on("connection.update", async (update) => {
-      const { connection, lastDisconnect, qr } = update;
-
-      if (qr) {
-        console.log("📲 QR generated for user:", userId);
-        io.to(userId).emit("qr", qr);
-      }
-
-      if (connection === "open") {
-        console.log("✅ WhatsApp connected:", userId);
-
-        await WhatsAppSession.findOneAndUpdate(
-          { userId },
-          {
-            apiKey: user.activePlan.apiKey,
-            connected: true,
-            phoneNumber: sock.user?.id || null,
-          },
-          { upsert: true }
-        );
-
-        io.to(userId).emit("whatsapp_connected");
-      }
-
-      if (connection === "close") {
-        const reason =
-          lastDisconnect?.error?.output?.statusCode ||
-          DisconnectReason.loggedOut;
-
-        console.log("❌ WA Disconnected:", reason);
-
-        if (reason === DisconnectReason.loggedOut) {
-          // delete session folder if logged out
-          fs.rmSync(sessionPath, { recursive: true, force: true });
-
-          await WhatsAppSession.findOneAndUpdate(
-            { userId },
-            { connected: false }
-          );
-        }
-      }
-    });
-
-    sock.ev.on("creds.update", saveCreds);
-
-    return sock;
-  } catch (err) {
-    console.error("WhatsApp Link Error:", err);
-    throw err;
+  } catch (e) {
+    console.error(`Failed to clear session for ${userId}:`, e);
   }
 };
 
 /**
- * Load/restore all sessions on server startup
+ * Create or return WhatsApp instance for a user
+ */
+export const createInstanceForUser = async (io, user) => {
+  const userId = user._id.toString();
+  const sessionPath = path.join(SESSIONS_DIR, userId);
+
+  // Clear any existing reconnect timeout
+  if (reconnectTimeouts[userId]) {
+    clearTimeout(reconnectTimeouts[userId]);
+    delete reconnectTimeouts[userId];
+  }
+
+  // Check if socket exists and is alive
+  if (userSockets[userId]) {
+    try {
+      const sock = userSockets[userId];
+      if (sock.ws?.readyState === 1 && sock.user) {
+        console.log("ℹ️ Reusing existing healthy socket for user:", userId);
+        return sock;
+      } else {
+        console.log("⚠️ Existing socket unhealthy, cleaning up...");
+        try {
+          sock.ws?.close();
+          sock.end();
+        } catch (e) {
+          console.warn("Cleanup error:", e.message);
+        }
+        delete userSockets[userId];
+      }
+    } catch (e) {
+      console.warn("Socket health check failed:", e.message);
+      delete userSockets[userId];
+    }
+  }
+
+  // If creation is already in progress, wait for it
+  if (userInitializers[userId]) {
+    console.log("⏳ Waiting for existing initializer for user:", userId);
+    return userInitializers[userId];
+  }
+
+  // Start new initialization
+  userInitializers[userId] = (async () => {
+    try {
+      console.log("🟦 Creating WhatsApp instance for user:", userId);
+      
+      // Create session directory
+      if (!fs.existsSync(sessionPath)) {
+        fs.mkdirSync(sessionPath, { recursive: true });
+      }
+
+      // Fetch latest Baileys version
+      let version;
+      try {
+        const latestVersion = await fetchLatestBaileysVersion();
+        version = latestVersion.version;
+        console.log(`📦 Using Baileys version: ${version.join(".")}`);
+      } catch (e) {
+        console.warn("⚠️ Could not fetch latest version:", e.message);
+      }
+
+      // Load auth state
+      const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
+
+      // Create socket with optimized config
+      const sock = makeWASocket({
+        version,
+        auth: {
+          creds: state.creds,
+          keys: makeCacheableSignalKeyStore(state.keys, {
+            logger: undefined
+          }),
+        },
+        printQRInTerminal: false,
+        browser: ["Chrome (Linux)", "", ""],
+        
+        // Connection optimization
+        markOnlineOnConnect: false,
+        syncFullHistory: false,
+        generateHighQualityLinkPreview: false,
+        patchMessageBeforeSending: (message) => {
+          const requiresPatch = !!(
+            message.buttonsMessage ||
+            message.templateMessage ||
+            message.listMessage
+          );
+          if (requiresPatch) {
+            message = {
+              viewOnceMessage: {
+                message: {
+                  messageContextInfo: {
+                    deviceListMetadataVersion: 2,
+                    deviceListMetadata: {},
+                  },
+                  ...message,
+                },
+              },
+            };
+          }
+          return message;
+        },
+        
+        // Retry and timeout config
+        retryRequestDelayMs: 250,
+        maxMsgRetryCount: 5,
+        connectTimeoutMs: 60_000,
+        keepAliveIntervalMs: 30_000,
+        defaultQueryTimeoutMs: 60_000,
+        
+        // Prevent aggressive queries on connect
+        fireInitQueries: false,
+        emitOwnEvents: false,
+        getMessage: async () => undefined,
+      });
+
+      // Store socket immediately
+      userSockets[userId] = sock;
+
+      // Handle connection updates
+      sock.ev.on("connection.update", async (update) => {
+        const { connection, lastDisconnect, qr, isNewLogin } = update;
+
+        if (qr) {
+          console.log("📲 QR generated for user:", userId);
+          io.to(userId).emit("qr", qr);
+        }
+
+        if (isNewLogin) {
+          console.log("🆕 New login detected for user:", userId);
+        }
+
+        if (connection === "open") {
+          console.log("✅ WhatsApp connected for user:", userId);
+          
+          // Update database
+          try {
+            await WhatsAppSession.findOneAndUpdate(
+              { userId },
+              {
+                apiKey: user.activePlan?.apiKey || undefined,
+                connected: true,
+                phoneNumber: sock.user?.id?.split(":")[0] || null,
+                updatedAt: new Date(),
+              },
+              { upsert: true }
+            );
+          } catch (e) {
+            console.error("DB update error:", e);
+          }
+
+          io.to(userId).emit("whatsapp_connected", {
+            phoneNumber: sock.user?.id?.split(":")[0] || null,
+          });
+        }
+
+        if (connection === "close") {
+          const statusCode = getStatusCode(lastDisconnect);
+          const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+          
+          console.log(`❌ Connection closed for ${userId}, code: ${statusCode}`);
+
+          // Handle logged out - clear everything
+          if (statusCode === DisconnectReason.loggedOut) {
+            console.log("🚪 User logged out, clearing session");
+            clearSession(userId);
+            
+            try {
+              await WhatsAppSession.findOneAndUpdate(
+                { userId },
+                { connected: false, phoneNumber: null }
+              );
+            } catch (e) {
+              console.error("DB update error:", e);
+            }
+
+            delete userSockets[userId];
+            io.to(userId).emit("whatsapp_disconnected", { 
+              reason: "logged_out",
+              message: "You have been logged out of WhatsApp"
+            });
+          } 
+          // Handle 401 (Unauthorized) - corrupted session
+          else if (statusCode === 401) {
+            console.log("🔒 Session unauthorized (401), clearing and restarting");
+            clearSession(userId);
+            delete userSockets[userId];
+            
+            // Retry connection after clearing session
+            reconnectTimeouts[userId] = setTimeout(async () => {
+              console.log(`🔄 Retrying connection for ${userId} after 401 error`);
+              try {
+                await createInstanceForUser(io, user);
+              } catch (e) {
+                console.error(`Reconnect failed for ${userId}:`, e);
+              }
+            }, 5000);
+          }
+          // Handle 515 (Stream Error) - normal after QR scan, needs reconnect
+          else if (statusCode === 515 || statusCode === DisconnectReason.restartRequired) {
+            console.log(`🔄 Stream error (515), reconnecting for ${userId}...`);
+            delete userSockets[userId];
+            
+            // Immediate reconnect for 515
+            reconnectTimeouts[userId] = setTimeout(async () => {
+              try {
+                console.log(`♻️ Reconnecting ${userId} after stream error`);
+                await createInstanceForUser(io, user);
+              } catch (e) {
+                console.error(`Reconnect failed for ${userId}:`, e);
+              }
+            }, 2000);
+          }
+          // Other connection issues - let Baileys auto-reconnect
+          else if (shouldReconnect) {
+            console.log(`🔄 Temporary disconnect (${statusCode}), will reconnect automatically`);
+            // Keep socket reference - Baileys will reconnect
+          } 
+          // Unknown error - cleanup
+          else {
+            console.log(`⚠️ Unknown disconnect reason (${statusCode}), cleaning up`);
+            delete userSockets[userId];
+          }
+        }
+      });
+
+      // Save credentials when updated
+      sock.ev.on("creds.update", saveCreds);
+
+      // Handle incoming messages
+      sock.ev.on("messages.upsert", async (m) => {
+        try {
+          const msg = m.messages?.[0];
+          if (!msg || msg.key?.fromMe) return;
+
+          const from = msg.key.remoteJid;
+          const text =
+            msg.message?.conversation ||
+            msg.message?.extendedTextMessage?.text ||
+            "";
+
+          console.log(`📨 Message from ${from}: ${text}`);
+          
+          io.to(userId).emit("newMessage", {
+            from,
+            text,
+            timestamp: new Date(),
+          });
+        } catch (e) {
+          console.error("Message handler error:", e);
+        }
+      });
+
+      return sock;
+    } catch (err) {
+      console.error(`❌ Failed to create instance for ${userId}:`, err);
+      delete userSockets[userId];
+      throw err;
+    } finally {
+      delete userInitializers[userId];
+    }
+  })();
+
+  return userInitializers[userId];
+};
+
+/**
+ * Restore sessions on startup
  */
 export const loadAllSessionsOnStart = async (io) => {
   try {
-    const allSessions = await WhatsAppSession.find({ connected: true });
+    const sessions = await WhatsAppSession.find({ connected: true });
 
-    if (!allSessions.length) {
-      console.log("➡ No sessions to restore.");
+    if (!sessions.length) {
+      console.log("➡️ No sessions to restore");
       return;
     }
 
-    console.log("🔁 Restoring sessions:", allSessions.length);
+    console.log(`🔄 Restoring ${sessions.length} sessions...`);
 
-    for (const session of allSessions) {
+    for (const session of sessions) {
       const userId = session.userId.toString();
       const sessionPath = path.join(SESSIONS_DIR, userId);
 
+      // Check if session files exist
       if (!fs.existsSync(sessionPath)) {
-        console.log("⚠ Missing session folder for:", userId);
+        console.log(`⚠️ No session files for ${userId}, marking disconnected`);
+        await WhatsAppSession.findOneAndUpdate(
+          { userId },
+          { connected: false }
+        );
         continue;
       }
 
-      console.log("♻️ Restoring session for:", userId);
+      try {
+        console.log(`♻️ Restoring session for: ${userId}`);
+        
+        const fakeUser = {
+          _id: userId,
+          activePlan: { apiKey: session.apiKey },
+        };
 
-      // Fake user object (needed for createInstanceForUser)
-      const fakeUser = {
-        _id: userId,
-        activePlan: { apiKey: session.apiKey },
-      };
-
-      await createInstanceForUser(io, fakeUser);
+        await createInstanceForUser(io, fakeUser);
+      } catch (e) {
+        console.error(`Failed to restore ${userId}:`, e.message);
+      }
     }
+
+    console.log("✅ Session restoration complete");
   } catch (err) {
-    console.error("❌ Failed to restore sessions:", err);
+    console.error("❌ Session restore error:", err);
+  }
+};
+
+/**
+ * Disconnect and cleanup a user's WhatsApp session
+ */
+export const disconnectUser = async (userId) => {
+  const sock = userSockets[userId];
+  
+  if (sock) {
+    try {
+      await sock.logout();
+    } catch (e) {
+      console.warn("Logout error:", e);
+    }
+    
+    delete userSockets[userId];
+  }
+
+  clearSession(userId);
+  
+  if (reconnectTimeouts[userId]) {
+    clearTimeout(reconnectTimeouts[userId]);
+    delete reconnectTimeouts[userId];
   }
 };

@@ -24,6 +24,10 @@ router.post("/link", authMiddleware, async (req, res) => {
     }
 
     const io = req.app.get("io");
+    const existingSock = getUserSock(userId);
+if (existingSock) {
+  return res.json({ message: "WhatsApp instance already running for this user" });
+}
 
     await createInstanceForUser(io, user);
 
