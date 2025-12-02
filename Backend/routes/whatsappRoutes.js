@@ -1,4 +1,5 @@
 import express from "express";
+import crypto from "crypto";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import User from "../models/User.js";
 import WhatsAppSession from "../models/WhatsAppSession.js";
@@ -6,10 +7,11 @@ import { createInstanceForUser, getUserSock } from "../services/whatsappManager.
 
 const router = express.Router();
 
-/**
- * Start WhatsApp linking
- * Route: POST /api/v1/whatsapp/link
- */
+const generateApiKey = () => {
+  return `wa_${crypto.randomBytes(32).toString("hex")}`;
+};
+
+
 router.post("/link", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -17,7 +19,7 @@ router.post("/link", authMiddleware, async (req, res) => {
 
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (!user.activePlan || !user.activePlan.apiKey) {
+    if (!user.activePlan) {
       return res.status(400).json({
         message: "Please activate a plan before linking WhatsApp",
       });
@@ -25,14 +27,43 @@ router.post("/link", authMiddleware, async (req, res) => {
 
     const io = req.app.get("io");
     const existingSock = getUserSock(userId);
-if (existingSock) {
-  return res.json({ message: "WhatsApp instance already running for this user" });
-}
+    
+    if (existingSock) {
+     
+      const session = await WhatsAppSession.findOne({ userId });
+      return res.json({ 
+        message: "WhatsApp instance already running for this user",
+        apiKey: session?.apiKey || user.activePlan?.apiKey
+      });
+    }
 
-    await createInstanceForUser(io, user);
+    let apiKey = user.activePlan?.apiKey;
+    if (!apiKey) {
+      apiKey = generateApiKey();
+      
+    
+      await User.findByIdAndUpdate(userId, {
+        "activePlan.apiKey": apiKey
+      });
+    }
+
+    
+    await WhatsAppSession.findOneAndUpdate(
+      { userId },
+      { 
+        apiKey,
+        connected: false,
+        updatedAt: new Date()
+      },
+      { upsert: true }
+    );
+
+
+    await createInstanceForUser(io, { ...user.toObject(), activePlan: { ...user.activePlan, apiKey } });
 
     return res.json({
       message: "WhatsApp linking started. Scan the QR on dashboard.",
+      apiKey: apiKey
     });
   } catch (err) {
     console.error("WhatsApp Link Error:", err);
@@ -40,10 +71,6 @@ if (existingSock) {
   }
 });
 
-/**
- * Get WhatsApp connection status
- * Route: GET /api/v1/whatsapp/status
- */
 router.get("/status", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -60,6 +87,7 @@ router.get("/status", authMiddleware, async (req, res) => {
     return res.json({
       connected: session.connected,
       number: session.phoneNumber || null,
+      apiKey: session.apiKey
     });
   } catch (err) {
     console.error("Status error:", err);
@@ -67,10 +95,79 @@ router.get("/status", authMiddleware, async (req, res) => {
   }
 });
 
-/**
- * Send WhatsApp Message using API key
- * Route: POST /api/v1/whatsapp/send
- */
+
+router.get("/api-key", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+
+    if (!user.activePlan) {
+      return res.status(400).json({ 
+        message: "No active plan found. Please activate a plan first." 
+      });
+    }
+
+
+    let apiKey = user.activePlan.apiKey;
+    
+    if (!apiKey) {
+      apiKey = generateApiKey();
+      await User.findByIdAndUpdate(userId, {
+        "activePlan.apiKey": apiKey
+      });
+    }
+
+    const session = await WhatsAppSession.findOne({ userId });
+
+    return res.json({
+      apiKey: apiKey,
+      connected: session?.connected || false,
+      phoneNumber: session?.phoneNumber || null
+    });
+  } catch (err) {
+    console.error("API Key fetch error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+router.post("/regenerate-key", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+
+    if (!user.activePlan) {
+      return res.status(400).json({ 
+        message: "No active plan found." 
+      });
+    }
+
+
+    const newApiKey = generateApiKey();
+
+
+    await User.findByIdAndUpdate(userId, {
+      "activePlan.apiKey": newApiKey
+    });
+
+
+    await WhatsAppSession.findOneAndUpdate(
+      { userId },
+      { apiKey: newApiKey },
+      { upsert: true }
+    );
+
+    return res.json({
+      message: "API key regenerated successfully",
+      apiKey: newApiKey
+    });
+  } catch (err) {
+    console.error("Regenerate key error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 router.post("/send", async (req, res) => {
   try {
     const apiKey =
@@ -88,7 +185,7 @@ router.post("/send", async (req, res) => {
 
     if (!session.connected)
       return res.status(400).json({
-        message: "WhatsApp is not connected. Reconnect first.",
+        message: "WhatsApp is not connected. Please scan QR code first.",
       });
 
     const userId = session.userId.toString();
@@ -96,7 +193,7 @@ router.post("/send", async (req, res) => {
 
     if (!waSock)
       return res.status(500).json({
-        message: "WhatsApp instance is not running for this user",
+        message: "WhatsApp instance is not running. Please reconnect.",
       });
 
     const { to, text } = req.body;
@@ -106,12 +203,52 @@ router.post("/send", async (req, res) => {
         message: "'to' and 'text' fields are required",
       });
 
-    await waSock.sendMessage(`${to}@s.whatsapp.net`, { text });
 
-    return res.json({ message: "Message sent successfully" });
+    const jid = to.includes("@s.whatsapp.net") ? to : `${to}@s.whatsapp.net`;
+
+    await waSock.sendMessage(jid, { text });
+
+  
+    await User.findOneAndUpdate(
+      { "activePlan.apiKey": apiKey },
+      { $inc: { "activePlan.messagesUsed": 1 } }
+    );
+
+    return res.json({ 
+      success: true,
+      message: "Message sent successfully",
+      to: to
+    });
   } catch (err) {
     console.error("Send Error:", err);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Internal server error", error: err.message });
+  }
+});
+
+
+router.post("/disconnect", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const sock = getUserSock(userId);
+
+    if (sock) {
+      try {
+        await sock.logout();
+      } catch (e) {
+        console.warn("Logout error:", e);
+      }
+    }
+
+  
+    await WhatsAppSession.findOneAndUpdate(
+      { userId },
+      { connected: false }
+    );
+
+    return res.json({ message: "WhatsApp disconnected successfully" });
+  } catch (err) {
+    console.error("Disconnect error:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -10,21 +10,21 @@ import path from "path";
 import { Boom } from "@hapi/boom";
 import WhatsAppSession from "../models/WhatsAppSession.js";
 
-// Helper to get status code from disconnect error
+
 const getStatusCode = (lastDisconnect) => {
   if (!lastDisconnect?.error) return null;
   
-  // Try Boom error format
+
   if (lastDisconnect.error.output?.statusCode) {
     return lastDisconnect.error.output.statusCode;
   }
   
-  // Try direct statusCode
+ 
   if (lastDisconnect.error.statusCode) {
     return lastDisconnect.error.statusCode;
   }
   
-  // Try error code from attrs
+
   if (lastDisconnect.error.data?.attrs?.code) {
     return parseInt(lastDisconnect.error.data.attrs.code);
   }
@@ -37,16 +37,13 @@ if (!fs.existsSync(SESSIONS_DIR)) {
   fs.mkdirSync(SESSIONS_DIR, { recursive: true });
 }
 
-// In-memory storage
-const userSockets = {};      // userId -> sock
-const userInitializers = {}; // userId -> Promise
-const reconnectTimeouts = {}; // userId -> timeout
 
+const userSockets = {};      
+const userInitializers = {}; 
+const reconnectTimeouts = {}; 
 export const getUserSock = (userId) => userSockets[userId];
 
-/**
- * Clear and reset session files for a user
- */
+
 const clearSession = (userId) => {
   const sessionPath = path.join(SESSIONS_DIR, userId);
   try {
@@ -59,20 +56,17 @@ const clearSession = (userId) => {
   }
 };
 
-/**
- * Create or return WhatsApp instance for a user
- */
+
 export const createInstanceForUser = async (io, user) => {
   const userId = user._id.toString();
   const sessionPath = path.join(SESSIONS_DIR, userId);
 
-  // Clear any existing reconnect timeout
   if (reconnectTimeouts[userId]) {
     clearTimeout(reconnectTimeouts[userId]);
     delete reconnectTimeouts[userId];
   }
 
-  // Check if socket exists and is alive
+
   if (userSockets[userId]) {
     try {
       const sock = userSockets[userId];
@@ -95,23 +89,22 @@ export const createInstanceForUser = async (io, user) => {
     }
   }
 
-  // If creation is already in progress, wait for it
+
   if (userInitializers[userId]) {
     console.log("⏳ Waiting for existing initializer for user:", userId);
     return userInitializers[userId];
   }
 
-  // Start new initialization
+
   userInitializers[userId] = (async () => {
     try {
       console.log("🟦 Creating WhatsApp instance for user:", userId);
       
-      // Create session directory
+
       if (!fs.existsSync(sessionPath)) {
         fs.mkdirSync(sessionPath, { recursive: true });
       }
 
-      // Fetch latest Baileys version
       let version;
       try {
         const latestVersion = await fetchLatestBaileysVersion();
@@ -121,10 +114,9 @@ export const createInstanceForUser = async (io, user) => {
         console.warn("⚠️ Could not fetch latest version:", e.message);
       }
 
-      // Load auth state
       const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
 
-      // Create socket with optimized config
+
       const sock = makeWASocket({
         version,
         auth: {
@@ -136,7 +128,7 @@ export const createInstanceForUser = async (io, user) => {
         printQRInTerminal: false,
         browser: ["Chrome (Linux)", "", ""],
         
-        // Connection optimization
+       
         markOnlineOnConnect: false,
         syncFullHistory: false,
         generateHighQualityLinkPreview: false,
@@ -162,23 +154,23 @@ export const createInstanceForUser = async (io, user) => {
           return message;
         },
         
-        // Retry and timeout config
+     
         retryRequestDelayMs: 250,
         maxMsgRetryCount: 5,
         connectTimeoutMs: 60_000,
         keepAliveIntervalMs: 30_000,
         defaultQueryTimeoutMs: 60_000,
         
-        // Prevent aggressive queries on connect
+        
         fireInitQueries: false,
         emitOwnEvents: false,
         getMessage: async () => undefined,
       });
 
-      // Store socket immediately
+  
       userSockets[userId] = sock;
 
-      // Handle connection updates
+   
       sock.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect, qr, isNewLogin } = update;
 
@@ -194,7 +186,7 @@ export const createInstanceForUser = async (io, user) => {
         if (connection === "open") {
           console.log("✅ WhatsApp connected for user:", userId);
           
-          // Update database
+        
           try {
             await WhatsAppSession.findOneAndUpdate(
               { userId },
@@ -221,7 +213,7 @@ export const createInstanceForUser = async (io, user) => {
           
           console.log(`❌ Connection closed for ${userId}, code: ${statusCode}`);
 
-          // Handle logged out - clear everything
+          
           if (statusCode === DisconnectReason.loggedOut) {
             console.log("🚪 User logged out, clearing session");
             clearSession(userId);
@@ -241,13 +233,13 @@ export const createInstanceForUser = async (io, user) => {
               message: "You have been logged out of WhatsApp"
             });
           } 
-          // Handle 401 (Unauthorized) - corrupted session
+          
           else if (statusCode === 401) {
             console.log("🔒 Session unauthorized (401), clearing and restarting");
             clearSession(userId);
             delete userSockets[userId];
             
-            // Retry connection after clearing session
+           
             reconnectTimeouts[userId] = setTimeout(async () => {
               console.log(`🔄 Retrying connection for ${userId} after 401 error`);
               try {
@@ -257,12 +249,12 @@ export const createInstanceForUser = async (io, user) => {
               }
             }, 5000);
           }
-          // Handle 515 (Stream Error) - normal after QR scan, needs reconnect
+          
           else if (statusCode === 515 || statusCode === DisconnectReason.restartRequired) {
             console.log(`🔄 Stream error (515), reconnecting for ${userId}...`);
             delete userSockets[userId];
             
-            // Immediate reconnect for 515
+         
             reconnectTimeouts[userId] = setTimeout(async () => {
               try {
                 console.log(`♻️ Reconnecting ${userId} after stream error`);
@@ -272,12 +264,12 @@ export const createInstanceForUser = async (io, user) => {
               }
             }, 2000);
           }
-          // Other connection issues - let Baileys auto-reconnect
+       
           else if (shouldReconnect) {
             console.log(`🔄 Temporary disconnect (${statusCode}), will reconnect automatically`);
-            // Keep socket reference - Baileys will reconnect
+           
           } 
-          // Unknown error - cleanup
+         
           else {
             console.log(`⚠️ Unknown disconnect reason (${statusCode}), cleaning up`);
             delete userSockets[userId];
@@ -285,10 +277,10 @@ export const createInstanceForUser = async (io, user) => {
         }
       });
 
-      // Save credentials when updated
+
       sock.ev.on("creds.update", saveCreds);
 
-      // Handle incoming messages
+      
       sock.ev.on("messages.upsert", async (m) => {
         try {
           const msg = m.messages?.[0];
@@ -325,9 +317,7 @@ export const createInstanceForUser = async (io, user) => {
   return userInitializers[userId];
 };
 
-/**
- * Restore sessions on startup
- */
+
 export const loadAllSessionsOnStart = async (io) => {
   try {
     const sessions = await WhatsAppSession.find({ connected: true });
@@ -343,7 +333,7 @@ export const loadAllSessionsOnStart = async (io) => {
       const userId = session.userId.toString();
       const sessionPath = path.join(SESSIONS_DIR, userId);
 
-      // Check if session files exist
+     
       if (!fs.existsSync(sessionPath)) {
         console.log(`⚠️ No session files for ${userId}, marking disconnected`);
         await WhatsAppSession.findOneAndUpdate(
@@ -373,9 +363,6 @@ export const loadAllSessionsOnStart = async (io) => {
   }
 };
 
-/**
- * Disconnect and cleanup a user's WhatsApp session
- */
 export const disconnectUser = async (userId) => {
   const sock = userSockets[userId];
   

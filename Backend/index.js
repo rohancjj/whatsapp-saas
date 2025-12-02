@@ -25,21 +25,19 @@ app.use(express.json());
 
 connectDb();
 
-// Create HTTP + Socket.io Server
+
 const PORT = process.env.PORT || 8080;
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-// Attach io to Request Object
+
 app.set("io", io);
 
-/* ----------------------------------------------
-   SOCKET.IO CONNECTION HANDLING
------------------------------------------------*/
+
 io.on("connection", (socket) => {
   console.log("🔌 Client connected:", socket.id);
 
-  // Frontend will call socket.emit("join", userId)
+
   socket.on("join", (userId) => {
     if (!userId) return;
 
@@ -52,16 +50,12 @@ io.on("connection", (socket) => {
   });
 });
 
-/* ----------------------------------------------
-   RESTORE ALL USER SESSIONS ON STARTUP
------------------------------------------------*/
+
 loadAllSessionsOnStart(io)
   .then(() => console.log("♻️ All WhatsApp sessions restored"))
   .catch((err) => console.error("❌ Session restore failed:", err));
 
-/* ----------------------------------------------
-   API ROUTES
------------------------------------------------*/
+
 app.use("/api/v1/whatsapp", whatsappRoutes);
 app.use("/auth", authroutes);
 app.use("/pricing", pricingroutes);
@@ -71,9 +65,6 @@ app.get("/", (req, res) => {
   res.send("WhatsApp SaaS Backend Running 🚀");
 });
 
-/* ----------------------------------------------
-   START SERVER
------------------------------------------------*/
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
