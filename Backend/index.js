@@ -11,6 +11,8 @@ import whatsappRoutes from "./routes/whatsappRoutes.js";
 import authroutes from "./routes/authroutes.js";
 import pricingroutes from "./routes/pricingroutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
+
 
 import { loadAllSessionsOnStart } from "./services/whatsappManager.js";
 
@@ -60,6 +62,8 @@ app.use("/api/v1/whatsapp", whatsappRoutes);
 app.use("/auth", authroutes);
 app.use("/pricing", pricingroutes);
 app.use("/user", userRoutes);
+app.use("/admin", adminRoutes);
+
 
 app.get("/", (req, res) => {
   res.send("WhatsApp SaaS Backend Running 🚀");

@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import axios from "axios";
+
 import {
   Users,
   DollarSign,
@@ -12,6 +14,44 @@ import {
 } from "lucide-react";
 
 export default function AdminDashboard() {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const token = localStorage.getItem("token");
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await axios.get("http://localhost:8080/admin/stats", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setStats(res.data);
+      } catch (err) {
+        console.error("Failed to load admin stats:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="h-[60vh] flex items-center justify-center text-xl text-slate-500">
+        Loading dashboard...
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <div className="text-center text-red-500 p-10 text-lg">
+        Failed to load dashboard data.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-10 animate-fadeIn">
 
@@ -30,38 +70,38 @@ export default function AdminDashboard() {
 
         <StatCard
           title="Total Users"
-          value="1,204"
+          value={stats.totalUsers}
           icon={<Users size={24} />}
           color="from-green-500 to-emerald-600"
         />
 
         <StatCard
           title="Active API Keys"
-          value="438"
+          value={stats.activeAPIKeys}
           icon={<KeyRound size={24} />}
           color="from-blue-500 to-indigo-600"
         />
 
         <StatCard
-          title="Messages Sent (Today)"
-          value="32,890"
+          title="Messages Used"
+          value={stats.totalMessagesUsed}
           icon={<MessageCircle size={24} />}
           color="from-amber-500 to-orange-600"
         />
 
         <StatCard
-          title="Monthly Revenue"
-          value="₹82,700"
-          icon={<DollarSign size={24} />}
-          color="from-teal-500 to-cyan-600"
+          title="Messages Left"
+          value={stats.totalMessagesLeft}
+          icon={<BarChart3 size={24} />}
+          color="from-rose-500 to-red-600"
         />
 
       </div>
 
-      {/* ========================= CHARTS SECTION ========================= */}
+      {/* ========================= CHARTS PLACEHOLDERS ========================= */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-        {/* API USAGE CHART */}
+        {/* API USAGE */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -73,7 +113,7 @@ export default function AdminDashboard() {
           </h2>
 
           <div className="h-56 flex items-center justify-center text-slate-400">
-            <p>[ API Usage Line Chart Here ]</p>
+            <p>[ API Usage Line Chart Coming Soon ]</p>
           </div>
         </motion.div>
 
@@ -89,9 +129,10 @@ export default function AdminDashboard() {
           </h2>
 
           <div className="h-56 flex items-center justify-center text-slate-400">
-            <p>[ Messages Bar Chart Here ]</p>
+            <p>[ Message Bar Chart Coming Soon ]</p>
           </div>
         </motion.div>
+
       </div>
 
       {/* ========================= SYSTEM STATUS ========================= */}
@@ -105,22 +146,22 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
 
           <StatusCard
-            label="Baileys Server"
-            value="Online"
+            label="Server Status"
+            value={stats.system.serverStatus}
             color="text-green-600"
             icon={<Zap size={20} />}
           />
 
           <StatusCard
-            label="QR Sessions"
-            value="57 Active"
+            label="Connected WhatsApp Sessions"
+            value={`${stats.connectedUsers} Active`}
             color="text-blue-600"
             icon={<Smartphone size={20} />}
           />
 
           <StatusCard
             label="API Response Time"
-            value="312ms"
+            value={`${stats.system.apiLatency} ms`}
             color="text-orange-600"
             icon={<Activity size={20} />}
           />
