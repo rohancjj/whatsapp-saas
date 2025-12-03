@@ -6,7 +6,6 @@ import crypto from "crypto";
 
 const router = Router();
 
-// ⭐ SELECT A PLAN
 router.post("/select-plan/:planId", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -15,7 +14,7 @@ router.post("/select-plan/:planId", authMiddleware, async (req, res) => {
     const plan = await Pricing.findById(planId);
     if (!plan) return res.status(404).json({ message: "Plan not found" });
 
-    // Generate API Key
+
     const apiKey = crypto.randomBytes(20).toString("hex");
 
     await User.findByIdAndUpdate(userId, {
@@ -41,7 +40,7 @@ router.post("/select-plan/:planId", authMiddleware, async (req, res) => {
   }
 });
 
-// ⭐ RETURN USER ACTIVE PLAN
+
 router.get("/active-plan", authMiddleware, async (req, res) => {
   const user = await User.findById(req.user.id);
 

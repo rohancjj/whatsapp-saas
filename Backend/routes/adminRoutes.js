@@ -7,38 +7,34 @@ import { Notifications } from "../services/sendNotification.js";
 
 const router = express.Router();
 
-/* ============================================================
-   ADMIN-ONLY ACCESS
-============================================================ */
+
 const adminOnly = (req, res, next) => {
   if (req.user.role !== "admin") {
     return res.status(403).json({ message: "Access Denied: Admin Only" });
   }
   next();
 };
-/* ============================================================
-   1️⃣ ADMIN DASHBOARD STATS
-============================================================ */
+
 router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
   try {
-    // Total registered users
+   
     const totalUsers = await User.countDocuments();
 
-    // Users with an active API key
+    
     const activeAPIKeys = await User.countDocuments({
       "activePlan.apiKey": { $exists: true, $ne: null }
     });
 
-    // WhatsApp connection stats
+    
     const connectedUsers = await WhatsAppSession.countDocuments({ connected: true });
     const disconnectedUsers = await WhatsAppSession.countDocuments({ connected: false });
 
-    // Total messages used
+  
     const msgUsed = await User.aggregate([
       { $group: { _id: null, used: { $sum: "$activePlan.messagesUsed" } } }
     ]);
 
-    // Messages left globally
+    
     const msgLeft = await User.aggregate([
       {
         $group: {
@@ -52,12 +48,12 @@ router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
       }
     ]);
 
-    // New users in the last 7 days
+   
     const lastWeekUsers = await User.countDocuments({
       createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
     });
 
-    // READY RESPONSE
+    
     res.json({
       totalUsers,
       activeAPIKeys,
@@ -66,7 +62,7 @@ router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
       totalMessagesUsed: msgUsed?.[0]?.used || 0,
       totalMessagesLeft: msgLeft?.[0]?.left || 0,
       recentUsers: lastWeekUsers,
-      revenue: 0, // You can update this when payment system is added
+      revenue: 0, 
       system: {
         serverStatus: "online",
         apiLatency: Math.floor(Math.random() * 150) + 80,
@@ -80,9 +76,7 @@ router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
 });
 
 
-/* ============================================================
-   2️⃣ GET ALL USERS
-============================================================ */
+
 router.get("/users", authMiddleware, adminOnly, async (req, res) => {
   try {
     const users = await User.find().select("-password");
@@ -122,9 +116,7 @@ router.get("/users", authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
-/* ============================================================
-   6️⃣ DISCONNECT USER WHATSAPP
-============================================================ */
+
 router.post("/disconnect/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -147,9 +139,7 @@ router.post("/disconnect/:userId", authMiddleware, adminOnly, async (req, res) =
   }
 });
 
-/* ============================================================
-   7️⃣ SUSPEND USER
-============================================================ */
+
 router.post("/suspend/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -169,9 +159,7 @@ router.post("/suspend/:userId", authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
-/* ============================================================
-   8️⃣ UNSUSPEND USER
-============================================================ */
+
 router.post("/unsuspend/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -191,9 +179,7 @@ router.post("/unsuspend/:userId", authMiddleware, adminOnly, async (req, res) =>
   }
 });
 
-/* ============================================================
-   9️⃣ TERMINATE USER
-============================================================ */
+
 router.post("/terminate/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -229,9 +215,7 @@ router.post("/terminate/:userId", authMiddleware, adminOnly, async (req, res) =>
   }
 });
 
-/* ============================================================
-   🔟 RESUME USER (Restore)
-============================================================ */
+
 router.post("/resume/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -254,9 +238,7 @@ router.post("/resume/:userId", authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
-/* ============================================================
-   1️⃣1️⃣ DELETE USER
-============================================================ */
+
 router.delete("/user/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     const userId = req.params.userId;

@@ -10,9 +10,7 @@ import fs from "fs";
 import path from "path";
 import WhatsAppSession from "../models/WhatsAppSession.js";
 
-/* -------------------------------------------------------
-   LOGGER (silent)
--------------------------------------------------------- */
+
 const createLogger = () => {
   const noop = () => {};
   return {
@@ -28,9 +26,7 @@ const createLogger = () => {
   };
 };
 
-/* -------------------------------------------------------
-   DIRECTORY FOR SESSIONS
--------------------------------------------------------- */
+
 const SESSIONS_DIR = path.join(process.cwd(), "wa_sessions");
 if (!fs.existsSync(SESSIONS_DIR)) {
   fs.mkdirSync(SESSIONS_DIR, { recursive: true });
@@ -42,21 +38,17 @@ const userInitializers = {};
 
 export const getUserSock = (userId) => userSockets[userId];
 
-/* -------------------------------------------------------
-   🔥 CHECK WHATSAPP NUMBER - USES ACTIVE SESSION
-   (Requires at least one user to be connected)
--------------------------------------------------------- */
+
 export const checkWhatsAppNumber = async (number) => {
   try {
-    // Clean and format the number
+    
     const clean = number.replace(/\D/g, "");
     const sanitized = clean.startsWith('+') ? clean.slice(1) : clean;
     const jid = `${sanitized}@s.whatsapp.net`;
 
     console.log(`🔍 Checking WhatsApp number: ${jid}`);
 
-    // Find ANY connected user's socket to use for the check
-    // This doesn't expose any data - just uses their connection to query WhatsApp
+    
     let sock = null;
     for (const userId in userSockets) {
       const userSock = userSockets[userId];
@@ -69,10 +61,10 @@ export const checkWhatsAppNumber = async (number) => {
 
     if (!sock) {
       console.log("⚠️ No active WhatsApp sessions available for number check");
-      return null; // Return null = can't verify right now
+      return null; 
     }
 
-    // Check if number exists on WhatsApp
+  
     const result = await sock.onWhatsApp(jid);
     
     console.log(`✅ WhatsApp check result for ${jid}:`, result);
@@ -80,13 +72,11 @@ export const checkWhatsAppNumber = async (number) => {
     return result?.[0]?.exists || false;
   } catch (err) {
     console.error("❌ Error checking WhatsApp number:", err.message);
-    return null; // Return null on error
+    return null; 
   }
 };
 
-/* -------------------------------------------------------
-   CLEAR SESSION
--------------------------------------------------------- */
+
 const clearSession = (userId) => {
   const sessionPath = path.join(SESSIONS_DIR, userId);
   try {
@@ -99,21 +89,19 @@ const clearSession = (userId) => {
   }
 };
 
-/* -------------------------------------------------------
-   CREATE WHATSAPP INSTANCE FOR USER
--------------------------------------------------------- */
+
 export const createInstanceForUser = async (io, user) => {
   const userId = user._id.toString();
   const sessionPath = path.join(SESSIONS_DIR, userId);
   const logger = createLogger();
 
-  // Cancel any pending reconnect
+
   if (reconnectTimeouts[userId]) {
     clearTimeout(reconnectTimeouts[userId]);
     delete reconnectTimeouts[userId];
   }
 
-  // Reuse active socket
+  
   if (userSockets[userId]) {
     const sock = userSockets[userId];
     if (sock.ws?.readyState === 1 && sock.user) return sock;
@@ -125,7 +113,6 @@ export const createInstanceForUser = async (io, user) => {
     delete userSockets[userId];
   }
 
-  // Avoid double initialization
   if (userInitializers[userId]) return userInitializers[userId];
 
   userInitializers[userId] = (async () => {
@@ -134,7 +121,7 @@ export const createInstanceForUser = async (io, user) => {
         fs.mkdirSync(sessionPath, { recursive: true });
       }
 
-      // Get latest WhatsApp Web Version
+      
       let version = [2, 3000, 1010];
       try {
         const v = await fetchLatestBaileysVersion();
@@ -165,9 +152,6 @@ export const createInstanceForUser = async (io, user) => {
 
       userSockets[userId] = sock;
 
-      /* -------------------------------------------------------
-         CONNECTION LOGIC
-      -------------------------------------------------------- */
       sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
         if (qr) io.to(userId).emit("qr", qr);
 
@@ -217,9 +201,7 @@ export const createInstanceForUser = async (io, user) => {
   return userInitializers[userId];
 };
 
-/* -------------------------------------------------------
-   RESTORE ALL SESSIONS ON SERVER START
--------------------------------------------------------- */
+
 export const loadAllSessionsOnStart = async (io) => {
   try {
     const active = await WhatsAppSession.find({ connected: true });

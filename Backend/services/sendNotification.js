@@ -2,13 +2,11 @@ import { getAdminSock } from "./adminWhatsapp.js";
 import WhatsAppSession from "../models/WhatsAppSession.js";
 import User from "../models/User.js";
 
-// ⬇️ NEW UNIVERSAL PHONE UTILS
+
 import { cleanPhone,toJID } from "../utils/phoneUtils.js";
 
 export const Notifications = {
-  /* ==========================================
-     SEND MESSAGE TO USER (Uses connected WA first)
-  =========================================== */
+
   sendToUser: async (userId, text) => {
     try {
       const adminSock = getAdminSock();
@@ -17,17 +15,17 @@ export const Notifications = {
         return { success: false, error: "Admin WhatsApp not connected" };
       }
 
-      // Get WhatsApp session
+    
       const session = await WhatsAppSession.findOne({ userId });
 
       let phoneToUse = null;
 
       if (session && session.connected && session.phoneNumber) {
-        // Most accurate → WhatsApp-connected number
+       
         phoneToUse = session.phoneNumber;
         console.log(`✅ Using connected WhatsApp number: ${phoneToUse}`);
       } else {
-        // Fallback to user's signup phone
+       
         const user = await User.findById(userId);
         if (user && user.phone) {
           phoneToUse = user.phone;
@@ -38,7 +36,7 @@ export const Notifications = {
         }
       }
 
-      // Clean → Normalize → Format → JID
+      
       const jid = toJID(phoneToUse);
       if (!jid) {
         console.log("❌ Invalid phone number:", phoneToUse);
@@ -60,9 +58,7 @@ export const Notifications = {
     }
   },
 
-  /* ==========================================
-     SEND MESSAGE TO USER BY DIRECT PHONE
-  =========================================== */
+  
   sendToUserByPhone: async (phone, text) => {
     try {
       const adminSock = getAdminSock();
@@ -88,9 +84,7 @@ export const Notifications = {
     }
   },
 
-  /* ==========================================
-     SEND MESSAGE TO ADMIN
-  =========================================== */
+ 
   sendToAdmin: async (text) => {
     try {
       const adminSock = getAdminSock();
@@ -116,9 +110,7 @@ export const Notifications = {
     }
   },
 
-  /* ==========================================
-     BULK NOTIFICATIONS (Batch)
-  =========================================== */
+ 
   sendBulk: async (userIds, text) => {
     try {
       const adminSock = getAdminSock();
@@ -140,7 +132,7 @@ export const Notifications = {
           results.details.push({ userId, status: "failed", error: result.error });
         }
 
-        // wait 1 second per WhatsApp guidelines
+        
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 

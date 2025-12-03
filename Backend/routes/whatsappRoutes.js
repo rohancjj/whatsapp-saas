@@ -12,14 +12,10 @@ import {
 
 const router = express.Router();
 
-/* -------------------------------------------------------
-   Generate API Key (Unique per User)
--------------------------------------------------------- */
+
 const generateApiKey = () => `wa_${crypto.randomBytes(32).toString("hex")}`;
 
-/* -------------------------------------------------------
-   Sync User <-> Session API Keys
--------------------------------------------------------- */
+
 const syncApiKeys = async (userId) => {
   try {
     const session = await WhatsAppSession.findOne({ userId });
@@ -39,9 +35,7 @@ const syncApiKeys = async (userId) => {
   }
 };
 
-/* -------------------------------------------------------
-   Link WhatsApp (USER - NOT ADMIN)
--------------------------------------------------------- */
+
 router.post("/link", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -53,7 +47,7 @@ router.post("/link", authMiddleware, async (req, res) => {
       return res.status(400).json({ message: "Please activate a plan first" });
     }
 
-    // ✅ CRITICAL: Check if user is admin
+    
     if (user.role === "admin") {
       return res.status(403).json({ 
         message: "Admin accounts cannot link user WhatsApp. Use Admin Dashboard instead." 
@@ -88,7 +82,7 @@ router.post("/link", authMiddleware, async (req, res) => {
       );
     }
 
-    // ✅ Create USER WhatsApp instance (separate from admin)
+    
     await createInstanceForUser(io, {
       ...user.toObject(),
       activePlan: { ...user.activePlan, apiKey },
@@ -104,9 +98,7 @@ router.post("/link", authMiddleware, async (req, res) => {
   }
 });
 
-/* -------------------------------------------------------
-   Get WhatsApp Status (USER)
--------------------------------------------------------- */
+
 router.get("/status", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -127,15 +119,13 @@ router.get("/status", authMiddleware, async (req, res) => {
   }
 });
 
-/* -------------------------------------------------------
-   Get API Key (USER)
--------------------------------------------------------- */
+
 router.get("/api-key", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
     const user = await User.findById(userId);
 
-    // ✅ Prevent admin from getting user API key
+    
     if (user?.role === "admin") {
       return res.status(403).json({ 
         message: "Admin accounts use separate WhatsApp system" 
@@ -173,15 +163,13 @@ router.get("/api-key", authMiddleware, async (req, res) => {
   }
 });
 
-/* -------------------------------------------------------
-   Regenerate API Key (USER)
--------------------------------------------------------- */
+
 router.post("/regenerate-key", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
     const user = await User.findById(userId);
 
-    // ✅ Prevent admin from regenerating user key
+   
     if (user?.role === "admin") {
       return res.status(403).json({ 
         message: "Admin accounts use separate system" 
@@ -206,9 +194,7 @@ router.post("/regenerate-key", authMiddleware, async (req, res) => {
   }
 });
 
-/* -------------------------------------------------------
-   Send Message (USER API)
--------------------------------------------------------- */
+
 router.post("/send", async (req, res) => {
   try {
     const apiKey =
@@ -223,7 +209,7 @@ router.post("/send", async (req, res) => {
     if (!session.connected)
       return res.status(400).json({ message: "WhatsApp not connected" });
 
-    // ✅ Get USER socket (not admin)
+   
     const sock = getUserSock(session.userId.toString());
     if (!sock)
       return res.status(500).json({ message: "WhatsApp instance offline" });
@@ -236,7 +222,7 @@ router.post("/send", async (req, res) => {
 
     await sock.sendMessage(jid, { text });
 
-    // Update message count
+
     await User.findByIdAndUpdate(session.userId, {
       $inc: { "activePlan.messagesUsed": 1 },
     });
@@ -248,9 +234,7 @@ router.post("/send", async (req, res) => {
   }
 });
 
-/* -------------------------------------------------------
-   Disconnect WhatsApp (USER)
--------------------------------------------------------- */
+
 router.post("/disconnect", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -275,9 +259,7 @@ router.post("/disconnect", authMiddleware, async (req, res) => {
   }
 });
 
-/* -------------------------------------------------------
-   Check WhatsApp Number (Public Endpoint)
--------------------------------------------------------- */
+
 router.post("/check-number", async (req, res) => {
   try {
     const { number } = req.body;
