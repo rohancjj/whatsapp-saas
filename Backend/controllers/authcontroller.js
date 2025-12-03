@@ -2,45 +2,48 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { Notifications } from "../services/sendNotification.js";
-
+import { cleanPhone } from "../utils/phoneUtils.js";   
 
 export const signup = async (req, res) => {
   try {
     const { fullName, email, password, phone, usageReason } = req.body;
 
-    // Check email already exists
+    
     const exists = await User.findOne({ email });
     if (exists) {
       return res.status(400).json({ message: "Email already in use" });
     }
 
-    // Hash password
     const hash = await bcrypt.hash(password, 10);
 
-    // Create user
+    // Clean phone using global utility
+    const cleanedPhone = cleanPhone(phone);
+
+    // Create User
     const user = await User.create({
       fullName,
       email,
       password: hash,
-      phone,
+      phone: cleanedPhone,
       usageReason,
+      lastLogin: null, // used for "first login" detection
     });
 
-    /* ======================================
-       SEND WHATSAPP NOTIFICATIONS
-    ======================================= */
-
-    // 🟩 Notify USER
-    if (phone) {
+    /* ===========================
+       SEND NOTIFICATION TO USER
+    ============================ */
+    if (cleanedPhone) {
       await Notifications.sendToUser(
-        phone,
-        `🎉 Welcome ${fullName}!\nYour WhatsAPI account has been created successfully.\n\nLogin and start using your dashboard.`
+        user._id,
+        `🎉 Welcome ${fullName}!\nYour WhatsAPI account has been created successfully.\n\nYou can now log in and access your dashboard.`
       );
     }
 
-    // 🟦 Notify ADMIN
+    /* ===========================
+       SEND NOTIFICATION TO ADMIN
+    ============================ */
     await Notifications.sendToAdmin(
-      `🆕 New User Registered\n\nName: ${fullName}\nEmail: ${email}\nPhone: ${phone || "N/A"}`
+      `🆕 *New User Registered*\n\n👤 Name: ${fullName}\n📧 Email: ${email}\n📱 Phone: ${cleanedPhone || "N/A"}`
     );
 
     return res.json({
@@ -54,33 +57,41 @@ export const signup = async (req, res) => {
   }
 };
 
-
-
+/* =========================================
+   LOGIN
+========================================= */
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check user exists
+    // Find user
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: "Invalid credentials" });
 
-    // Check password
     const correct = await bcrypt.compare(password, user.password);
     if (!correct) return res.status(400).json({ message: "Invalid credentials" });
 
-    // Create JWT token
+    // Create token
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    /* ======================================
-       NOTIFY ADMIN ON LOGIN
-    ======================================= */
-    await Notifications.sendToAdmin(
-      `🔐 User Logged In\n\nName: ${user.fullName}\nEmail: ${user.email}`
-    );
+    /* =========================================
+       FIRST TIME LOGIN NOTIFICATION TO ADMIN
+    ========================================== */
+    const isFirstLogin = !user.lastLogin;
+
+    if (isFirstLogin) {
+      await Notifications.sendToAdmin(
+        `🔐 *User First Login*\n\n👤 Name: ${user.fullName}\n📧 Email: ${user.email}`
+      );
+    }
+
+    // Update last login timestamp
+    user.lastLogin = new Date();
+    await user.save();
 
     return res.json({
       message: "Login successful",
