@@ -8,11 +8,10 @@ import {
   Wifi,
   WifiOff,
   Mail,
-  RefreshCw,
 } from "lucide-react";
 
 /* =======================================================
-   PREMIUM APPLE-STYLE CONFIRM MODAL
+   PREMIUM CONFIRMATION MODAL
 ======================================================= */
 const ConfirmModal = ({ open, title, message, onConfirm, onCancel }) => {
   if (!open) return null;
@@ -152,13 +151,13 @@ export default function UserManagement() {
   ======================================================= */
   return (
     <div className="p-6 space-y-8 animate-fadeIn">
+
       {/* HEADER */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-slate-800">User Management</h1>
 
         <div className="relative">
           <Search className="absolute top-2 left-3 text-slate-400" size={18} />
-
           <input
             type="text"
             value={search}
@@ -189,7 +188,7 @@ export default function UserManagement() {
                 key={user.id}
                 className="border-b last:border-none hover:bg-slate-50 transition"
               >
-                {/* USER */}
+                {/* USER INFO */}
                 <td className="py-4 flex items-center gap-3">
                   <UserCircle size={32} className="text-slate-400" />
                   <div>
@@ -221,8 +220,7 @@ export default function UserManagement() {
                         {user.activePlan.planId || "No Plan"}
                       </p>
                       <p className="text-xs text-slate-500">
-                        Used {user.activePlan.messagesUsed}/
-                        {user.activePlan.totalMessages}
+                        Used {user.activePlan.messagesUsed}/{user.activePlan.totalMessages}
                       </p>
                     </>
                   ) : (
@@ -244,7 +242,7 @@ export default function UserManagement() {
                   )}
                 </td>
 
-                {/* WHATSAPP */}
+                {/* WHATSAPP STATUS */}
                 <td>
                   {user.whatsapp?.connected ? (
                     <span className="flex items-center gap-1 text-green-600 font-medium">
@@ -255,7 +253,6 @@ export default function UserManagement() {
                       <WifiOff size={18} /> Offline
                     </span>
                   )}
-
                   <p className="text-xs text-slate-500">
                     {user.whatsapp?.phone || "—"}
                   </p>
@@ -287,8 +284,7 @@ export default function UserManagement() {
                               setModalData({
                                 open: true,
                                 title: "Suspend User",
-                                message:
-                                  "Are you sure you want to suspend this user?",
+                                message: "Are you sure you want to suspend this user?",
                                 onConfirm: () => performAction(user.id, "suspend"),
                               });
                               setOpenDropdown(null);
@@ -324,7 +320,7 @@ export default function UserManagement() {
                               setModalData({
                                 open: true,
                                 title: "Disconnect WhatsApp",
-                                message: "Force logout from WhatsApp session?",
+                                message: "Force logout WhatsApp session?",
                                 onConfirm: () => performAction(user.id, "disconnect"),
                               });
                               setOpenDropdown(null);
@@ -343,7 +339,7 @@ export default function UserManagement() {
                                 open: true,
                                 title: "Terminate User",
                                 message:
-                                  "This will revoke plan, API key and disconnect WhatsApp. Continue?",
+                                  "Revoke API key, plan & WhatsApp access? This action is severe.",
                                 onConfirm: () => performAction(user.id, "terminate"),
                               });
                               setOpenDropdown(null);
@@ -362,7 +358,7 @@ export default function UserManagement() {
                                 open: true,
                                 title: "Resume User",
                                 message:
-                                  "Restore user’s account and allow access again?",
+                                  "Restore full access for this user? WhatsApp login required again.",
                                 onConfirm: () => performAction(user.id, "resume"),
                               });
                               setOpenDropdown(null);
@@ -380,9 +376,8 @@ export default function UserManagement() {
                               open: true,
                               title: "Delete User",
                               message:
-                                "This action is permanent and cannot be undone.",
-                              onConfirm: () =>
-                                performAction(user.id, "delete", "DELETE"),
+                                "This action permanently deletes this user and all their data. Continue?",
+                              onConfirm: () => performAction(user.id, "delete", "DELETE"),
                             });
                             setOpenDropdown(null);
                           }}
