@@ -2,11 +2,13 @@ import express from "express";
 import User from "../models/User.js";
 import WhatsAppSession from "../models/WhatsAppSession.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
+import { getUserSock } from "../services/whatsappManager.js";
+import { Notifications } from "../services/sendNotification.js";
 
 const router = express.Router();
 
 /* ============================================================
-   ROLE CHECK: ONLY ADMIN CAN ACCESS THESE ROUTES
+   ADMIN-ONLY ACCESS
 ============================================================ */
 const adminOnly = (req, res, next) => {
   if (req.user.role !== "admin") {
@@ -16,7 +18,7 @@ const adminOnly = (req, res, next) => {
 };
 
 /* ============================================================
-   1️⃣ MAIN ADMIN DASHBOARD STATS API
+   1️⃣ MAIN DASHBOARD STATS
 ============================================================ */
 router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
   try {
@@ -29,15 +31,11 @@ router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
     const connectedUsers = await WhatsAppSession.countDocuments({ connected: true });
     const disconnectedUsers = await WhatsAppSession.countDocuments({ connected: false });
 
-    // Total message usage across all users
-    const msgAgg = await User.aggregate([
+    const msgUsed = await User.aggregate([
       { $group: { _id: null, used: { $sum: "$activePlan.messagesUsed" } } }
     ]);
 
-    const totalMessagesUsed = msgAgg?.[0]?.used || 0;
-
-    // Messages left
-    const msgLeftAgg = await User.aggregate([
+    const msgLeft = await User.aggregate([
       {
         $group: {
           _id: null,
@@ -49,9 +47,7 @@ router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
         }
       }
     ]);
-    const totalMessagesLeft = msgLeftAgg?.[0]?.left || 0;
 
-    // Recent Users (last 7 days)
     const lastWeekUsers = await User.countDocuments({
       createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
     });
@@ -61,15 +57,13 @@ router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
       activeAPIKeys,
       connectedUsers,
       disconnectedUsers,
-      totalMessagesUsed,
-      totalMessagesLeft,
+      totalMessagesUsed: msgUsed?.[0]?.used || 0,
+      totalMessagesLeft: msgLeft?.[0]?.left || 0,
       recentUsers: lastWeekUsers,
-
-      revenue: 0, // Replace after adding payment integration
-
+      revenue: 0,
       system: {
         serverStatus: "online",
-        apiLatency: Math.floor(Math.random() * 200) + 100, // dummy value
+        apiLatency: Math.floor(Math.random() * 150) + 80,
       }
     });
 
@@ -80,15 +74,14 @@ router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
 });
 
 /* ============================================================
-   2️⃣ GET ALL USERS + PLAN + API KEY + WA SESSION
+   2️⃣ GET ALL USERS
 ============================================================ */
 router.get("/users", authMiddleware, adminOnly, async (req, res) => {
   try {
     const users = await User.find().select("-password");
-
     const sessions = await WhatsAppSession.find();
-    const sessionMap = {};
 
+    const sessionMap = {};
     sessions.forEach((s) => {
       sessionMap[s.userId] = {
         apiKey: s.apiKey,
@@ -104,26 +97,14 @@ router.get("/users", authMiddleware, adminOnly, async (req, res) => {
       email: u.email,
       phone: u.phone,
       role: u.role,
-
-      activePlan: u.activePlan
-        ? {
-            planId: u.activePlan.planId,
-            activatedAt: u.activePlan.activatedAt,
-            expiryAt: u.activePlan.expiryAt,
-            messagesUsed: u.activePlan.messagesUsed,
-            totalMessages: u.activePlan.totalMessages,
-            apiKey: u.activePlan.apiKey,
-          }
-        : null,
-
-      whatsapp: sessionMap[u._id] || {
-        apiKey: null,
-        connected: false,
-        phone: null
-      },
+      suspended: u.suspended,
+      terminated: u.terminated || false,
+      activePlan: u.activePlan,
+      whatsapp: sessionMap[u._id] || { apiKey: null, connected: false, phone: null },
     }));
 
     res.json(final);
+
   } catch (err) {
     console.error("Admin Users Error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
@@ -131,65 +112,157 @@ router.get("/users", authMiddleware, adminOnly, async (req, res) => {
 });
 
 /* ============================================================
-   3️⃣ GET SPECIFIC USER DETAILS
+   6️⃣ DISCONNECT USER WHATSAPP
 ============================================================ */
-router.get("/user/:id", authMiddleware, adminOnly, async (req, res) => {
+router.post("/disconnect/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select("-password");
+    const userId = req.params.userId;
+    const user = await User.findById(userId);
 
-    if (!user) return res.status(404).json({ message: "User not found" });
+    const sock = getUserSock(userId);
+    if (sock) try { await sock.logout(); } catch {}
 
-    const session = await WhatsAppSession.findOne({ userId: user._id });
+    await WhatsAppSession.updateOne({ userId }, { connected: false });
 
-    return res.json({
-      user,
-      whatsapp: session || null
-    });
+    Notifications.sendToUser(
+      user.phone,
+      `🔌 Your WhatsApp session has been disconnected by the admin.\nPlease reconnect to continue using services.`
+    );
+
+    res.json({ message: "User disconnected successfully" });
+
   } catch (err) {
-    console.error("Admin Get User Error:", err);
+    console.error("Disconnect user error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
 /* ============================================================
-   4️⃣ FILTER CONNECTED USERS
+   7️⃣ SUSPEND USER
 ============================================================ */
-router.get("/connected-users", authMiddleware, adminOnly, async (req, res) => {
+router.post("/suspend/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
-    const sessions = await WhatsAppSession.find({ connected: true });
-    res.json(sessions);
-  } catch (err) {
-    console.error("Connected users error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
-  }
-});
+    const userId = req.params.userId;
+    const user = await User.findByIdAndUpdate(userId, { suspended: true });
 
-/* ============================================================
-   5️⃣ FILTER DISCONNECTED USERS
-============================================================ */
-router.get("/disconnected-users", authMiddleware, adminOnly, async (req, res) => {
-  try {
-    const sessions = await WhatsAppSession.find({ connected: false });
-    res.json(sessions);
-  } catch (err) {
-    console.error("Disconnected users error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
-  }
-});
-
-/* ============================================================
-   6️⃣ FORCE DISCONNECT USER (Admin Action)
-============================================================ */
-router.post("/disconnect/:userId", authMiddleware, adminOnly, async (req, res) => {
-  try {
-    await WhatsAppSession.findOneAndUpdate(
-      { userId: req.params.userId },
-      { connected: false }
+    Notifications.sendToUser(
+      user.phone,
+      `⛔ Your account has been suspended.\nIf you believe this is a mistake, please contact support.`
     );
 
-    return res.json({ message: "User disconnected successfully" });
+    res.json({ message: "User suspended" });
+
   } catch (err) {
-    console.error("Admin disconnect error:", err);
+    console.error("Suspend error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ============================================================
+   8️⃣ UNSUSPEND USER
+============================================================ */
+router.post("/unsuspend/:userId", authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(req.params.userId, { suspended: false });
+
+    Notifications.sendToUser(
+      user.phone,
+      `✔️ Your account has been unsuspended.\nYou may now log in again.`
+    );
+
+    res.json({ message: "User unsuspended" });
+
+  } catch (err) {
+    console.error("Unsuspend error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ============================================================
+   9️⃣ TERMINATE USER
+============================================================ */
+router.post("/terminate/:userId", authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const user = await User.findById(userId);
+
+    const sock = getUserSock(userId);
+    if (sock) try { await sock.logout(); } catch {}
+
+    await WhatsAppSession.findOneAndDelete({ userId });
+
+    await User.findByIdAndUpdate(userId, {
+      terminated: true,
+      suspended: true,
+      activePlan: {
+        planId: null,
+        activatedAt: null,
+        expiryAt: null,
+        totalMessages: 0,
+        messagesUsed: 0,
+        apiKey: null
+      }
+    });
+
+    Notifications.sendToUser(
+      user.phone,
+      `❌ Your account has been terminated.\nWhatsApp and API access has been revoked.`
+    );
+
+    res.json({ message: "User terminated" });
+
+  } catch (err) {
+    console.error("Terminate error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ============================================================
+   🔟 RESUME (RESTORE TERMINATED USER)
+============================================================ */
+router.post("/resume/:userId", authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(req.params.userId, {
+      terminated: false,
+      suspended: false
+    });
+
+    Notifications.sendToUser(
+      user.phone,
+      `🔄 Your account has been restored.\nYou may now access all features again.`
+    );
+
+    res.json({ message: "User resumed (restored)" });
+
+  } catch (err) {
+    console.error("Resume error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ============================================================
+   1️⃣1️⃣ DELETE USER
+============================================================ */
+router.delete("/user/:userId", authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const user = await User.findById(userId);
+
+    const sock = getUserSock(userId);
+    if (sock) try { await sock.logout(); } catch {}
+
+    await WhatsAppSession.findOneAndDelete({ userId });
+    await User.findByIdAndDelete(userId);
+
+    Notifications.sendToUser(
+      user.phone,
+      `🗑️ Your account has been permanently deleted.\nAll data and access removed.`
+    );
+
+    res.json({ message: "User deleted permanently" });
+
+  } catch (err) {
+    console.error("Delete error:", err);
     res.status(500).json({ error: err.message });
   }
 });

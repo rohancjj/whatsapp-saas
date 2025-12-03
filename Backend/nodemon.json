@@ -1,12 +1,26 @@
 {
-  "watch": ["."],
-  "ignore": [
-    "auth_info_multi/**",
-    "wa_sessions/**",
-    "auth_info_multi",
-    "wa_sessions",
-    "qr_base64.txt",
-    "node_modules"
+  "watch": [
+    "routes/**/*.js",
+    "controllers/**/*.js",
+    "models/**/*.js",
+    "config/**/*.js",
+    "middlewares/**/*.js",
+    "index.js"
   ],
-  "ext": "js,mjs,json"
+  "ignore": [
+    "wa_admin_session/**",
+    "wa_sessions/**",
+    "node_modules/**",
+    "*.log",
+    ".git"
+  ],
+  "ext": "js,json",
+  "delay": "2000",
+  "verbose": false,
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "events": {
+    "restart": "echo '🔄 Nodemon restarting server...'"
+  }
 }
