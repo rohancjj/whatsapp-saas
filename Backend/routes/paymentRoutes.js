@@ -3,7 +3,7 @@ import { upload } from "../middlewares/upload.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import adminMiddleware from "../middlewares/adminMiddleware.js";
 
-
+import * as razorCtrl from "../controllers/razorpayController.js"
 import * as paymentSettingsCtrl from "../controllers/paymentSettingsController.js";
 import * as manualPaymentCtrl from "../controllers/manualPaymentController.js";
 import * as adminManualCtrl from "../controllers/adminManualPaymentController.js";
@@ -95,5 +95,10 @@ router.get(
   authMiddleware,
   manualPaymentCtrl.getLatestStatus
 );
+
+router.post("/razorpay/order", authMiddleware, razorCtrl.createOrder);
+router.post("/razorpay/verify", authMiddleware, razorCtrl.verifyPayment);
+
+
 
 export default router;
