@@ -74,3 +74,15 @@ export const listUserPayments = async (req, res) => {
     res.status(500).json({ message: "Internal Server Error", error: err.message });
   }
 };
+export const getLatestStatus = async (req, res) => {
+  try {
+    const payment = await ManualPayment.findOne({ userId: req.user.id })
+      .sort({ createdAt: -1 });
+
+    if (!payment) return res.json({ status: "no_payment" });
+
+    return res.json({ status: payment.status, planId: payment.planId });
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+};

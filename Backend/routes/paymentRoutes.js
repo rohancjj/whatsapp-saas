@@ -90,4 +90,10 @@ router.delete(
   adminManualCtrl.deletePayment
 );
 
+router.get(
+  "/payments/status",
+  authMiddleware,
+  manualPaymentCtrl.getLatestStatus
+);
+
 export default router;

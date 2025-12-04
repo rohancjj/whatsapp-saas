@@ -215,13 +215,13 @@ router.post("/send", async (req, res) => {
     if (!user || !user.activePlan?.planId)
       return res.status(403).json({ message: "No active plan found. Please subscribe." });
 
-    // 🔄 Reset if it's a new day
+    
     await resetIfNeeded(user);
 
-    const dailyLimit = user.activePlan.planId.messages; // 🟢 plan message quota per day
+    const dailyLimit = user.activePlan.planId.messages; 
     const usedToday = user.activePlan.messagesUsedToday;
 
-    // 🚫 If user exceeds daily limit: block sending
+    
     if (usedToday >= dailyLimit) {
       return res.status(429).json({
         message: "❌ Daily limit reached. Upgrade your plan or wait until tomorrow.",
@@ -246,7 +246,7 @@ router.post("/send", async (req, res) => {
 
     await sock.sendMessage(jid, { text });
 
-    // ⬆ Increase daily + total usage
+    
     user.activePlan.messagesUsed += 1;
     user.activePlan.messagesUsedToday += 1;
     await user.save();
