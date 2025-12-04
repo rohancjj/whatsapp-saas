@@ -25,11 +25,11 @@ export const createManualPayment = async (req, res) => {
       return res.status(400).json({ message: "Screenshot is required." });
     }
 
-    // Create manual payment request
+    
     const payment = await ManualPayment.create({
       userId,
       planId,
-      amount: Number(plan.price),  // Auto-assign amount based on plan
+      amount: Number(plan.price), 
       currency: currency || "INR",
       method: "manual",
       note: note || "",

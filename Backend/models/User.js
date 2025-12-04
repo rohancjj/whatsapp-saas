@@ -11,6 +11,10 @@ const userSchema = new mongoose.Schema(
 
     role: { type: String, default: "user" },
 
+    // 🔥 ADD THESE TWO FIELDS
+    suspended: { type: Boolean, default: false },
+    terminated: { type: Boolean, default: false },
+
     activePlan: {
       planId: { type: mongoose.Schema.Types.ObjectId, ref: "Pricing" },
       activatedAt: Date,

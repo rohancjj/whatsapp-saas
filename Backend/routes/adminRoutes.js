@@ -14,6 +14,9 @@ const adminOnly = (req, res, next) => {
   next();
 };
 
+/* ================================
+   📊 SYSTEM STATS
+================================ */
 router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
@@ -53,7 +56,6 @@ router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
       totalMessagesUsed: msgUsed?.[0]?.used || 0,
       totalMessagesLeft: msgLeft?.[0]?.left || 0,
       recentUsers: lastWeekUsers,
-      revenue: 0,
       system: {
         serverStatus: "online",
         apiLatency: Math.floor(Math.random() * 150) + 80,
@@ -66,7 +68,9 @@ router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
-// ✅ FIXED: Keep _id consistent with MongoDB
+/* ================================
+   👥 GET ALL USERS
+================================ */
 router.get("/users", authMiddleware, adminOnly, async (req, res) => {
   try {
     const users = await User.find().select("-password");
@@ -83,13 +87,14 @@ router.get("/users", authMiddleware, adminOnly, async (req, res) => {
     });
 
     const final = users.map((u) => ({
-      _id: u._id,  // ✅ KEEP AS _id FOR CONSISTENCY
+      _id: u._id,
       fullName: u.fullName,
       email: u.email,
       phone: u.phone,
       role: u.role,
-      suspended: u.suspended,
-      terminated: u.terminated || false,
+      suspended: Boolean(u.suspended),
+      terminated: Boolean(u.terminated),
+
       activePlan: u.activePlan,
       whatsapp: sessionMap[u._id] || {
         apiKey: null,
@@ -106,6 +111,9 @@ router.get("/users", authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
+/* ================================
+   🔌 DISCONNECT USER WHATSAPP
+================================ */
 router.post("/disconnect/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -117,7 +125,7 @@ router.post("/disconnect/:userId", authMiddleware, adminOnly, async (req, res) =
 
     await Notifications.sendToUser(
       userId,
-      `🔌 Your WhatsApp session has been disconnected by the admin.\nPlease reconnect to continue using services.`
+      `🔌 Your WhatsApp session has been disconnected by the admin.`
     );
 
     res.json({ message: "User disconnected successfully" });
@@ -128,15 +136,16 @@ router.post("/disconnect/:userId", authMiddleware, adminOnly, async (req, res) =
   }
 });
 
+/* ================================
+   ⛔ SUSPEND USER
+================================ */
 router.post("/suspend/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
-    const userId = req.params.userId;
-
-    await User.findByIdAndUpdate(userId, { suspended: true });
+    await User.findByIdAndUpdate(req.params.userId, { suspended: true });
 
     await Notifications.sendToUser(
-      userId,
-      `⛔ Your account has been suspended.\nIf you believe this is a mistake, please contact support.`
+      req.params.userId,
+      `⛔ Your account has been suspended temporarily.`
     );
 
     res.json({ message: "User suspended" });
@@ -147,15 +156,16 @@ router.post("/suspend/:userId", authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
+/* ================================
+   ✔️ UNSUSPEND
+================================ */
 router.post("/unsuspend/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
-    const userId = req.params.userId;
-
-    await User.findByIdAndUpdate(userId, { suspended: false });
+    await User.findByIdAndUpdate(req.params.userId, { suspended: false });
 
     await Notifications.sendToUser(
-      userId,
-      `✔️ Your account has been unsuspended.\nYou may now log in again.`
+      req.params.userId,
+      `✔️ Your account suspension has been lifted.`
     );
 
     res.json({ message: "User unsuspended" });
@@ -166,6 +176,9 @@ router.post("/unsuspend/:userId", authMiddleware, adminOnly, async (req, res) =>
   }
 });
 
+/* ================================
+   🚫 TERMINATE USER (Temporary Ban)
+================================ */
 router.post("/terminate/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -190,10 +203,10 @@ router.post("/terminate/:userId", authMiddleware, adminOnly, async (req, res) =>
 
     await Notifications.sendToUser(
       userId,
-      `❌ Your account has been terminated.\nWhatsApp & API access revoked.`
+      `❌ Your account has been terminated (temporary ban).`
     );
 
-    res.json({ message: "User terminated" });
+    res.json({ message: "User terminated successfully" });
 
   } catch (err) {
     console.error("Terminate error:", err);
@@ -201,21 +214,22 @@ router.post("/terminate/:userId", authMiddleware, adminOnly, async (req, res) =>
   }
 });
 
+/* ================================
+   🔄 RESUME USER (Undo Terminate)
+================================ */
 router.post("/resume/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
-    const userId = req.params.userId;
-
-    await User.findByIdAndUpdate(userId, {
+    await User.findByIdAndUpdate(req.params.userId, {
       terminated: false,
       suspended: false
     });
 
     await Notifications.sendToUser(
-      userId,
-      `🔄 Your account has been restored.\nYou may now use all features again.`
+      req.params.userId,
+      `🔄 Your account has been restored.`
     );
 
-    res.json({ message: "User resumed" });
+    res.json({ message: "User resumed (restored)" });
 
   } catch (err) {
     console.error("Resume error:", err);
@@ -223,6 +237,9 @@ router.post("/resume/:userId", authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
+/* ================================
+   🗑️ DELETE USER PERMANENTLY
+================================ */
 router.delete("/user/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -233,12 +250,7 @@ router.delete("/user/:userId", authMiddleware, adminOnly, async (req, res) => {
     await WhatsAppSession.findOneAndDelete({ userId });
     await User.findByIdAndDelete(userId);
 
-    await Notifications.sendToUser(
-      userId,
-      `🗑️ Your account has been permanently deleted.\nAll data and access removed.`
-    );
-
-    res.json({ message: "User deleted permanently" });
+    res.json({ message: "User permanently deleted" });
 
   } catch (err) {
     console.error("Delete error:", err);

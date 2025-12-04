@@ -9,7 +9,7 @@ export const getSettings = async (req, res) => {
 };
 
 export const updateSettings = async (req, res) => {
-  // Assume middleware handled file and returned req.file.path or req.fileUrl
+  
   const updates = {};
   if (req.body.upiId) updates.upiId = req.body.upiId;
   if (req.body.bankName) updates.bank = {
@@ -18,7 +18,7 @@ export const updateSettings = async (req, res) => {
     ifsc: req.body.ifsc,
     holderName: req.body.holderName,
   };
-  if (req.fileUrl) updates.qrCodeUrl = req.fileUrl; // set by upload or cloud middleware
+  if (req.fileUrl) updates.qrCodeUrl = req.fileUrl; 
   updates.updatedAt = new Date();
 
   const settings = await PaymentSettings.findOneAndUpdate({}, { $set: updates }, { upsert: true, new: true });
