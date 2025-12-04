@@ -9,7 +9,13 @@ export default function Pricing() {
     fetch("http://localhost:8080/pricing")
       .then((res) => res.json())
       .then((data) => {
-        setPlans(data);
+        // Sort plans so free plan appears first dynamically
+        const freePlan = data.find((p) => p.price === 0);
+        const paidPlans = data.filter((p) => p.price !== 0);
+
+        const finalList = freePlan ? [freePlan, ...paidPlans] : data;
+
+        setPlans(finalList);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -25,6 +31,7 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-slate-100 py-20 px-6">
+
       {/* HEADER */}
       <div className="max-w-6xl mx-auto text-center mb-14">
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">
@@ -35,7 +42,7 @@ export default function Pricing() {
         </p>
       </div>
 
-      {/* PLANS GRID */}
+      {/* PRICING GRID */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-10 max-w-6xl mx-auto">
         {plans.map((p) => (
           <PlanCard key={p._id} p={p} />
@@ -45,24 +52,35 @@ export default function Pricing() {
   );
 }
 
-/* INDIVIDUAL PLAN CARD */
+/* PLAN CARD */
 const PlanCard = ({ p }) => {
+  const isFree = p.price === 0;
+
   const handleSelect = async () => {
     const token = localStorage.getItem("token");
+    if (!token) return alert("Please login to continue");
 
-    const res = await fetch(
-      `http://localhost:8080/user/select-plan/${p._id}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+    // FREE PLAN → ACTIVATE DIRECTLY
+    if (isFree) {
+      try {
+        const res = await fetch(`http://localhost:8080/user/select-plan/${p._id}`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) return alert("Failed to activate free plan");
+
+        alert("Free plan activated!");
+        window.location.href = "/user/dashboard";
+      } catch (err) {
+        console.log(err);
+        alert("Error activating free plan");
       }
-    );
+      return;
+    }
 
-    if (!res.ok) return alert("Failed to activate plan");
-
-    window.location.href = "/user/dashboard"; // 🚀 redirect
+    // PAID PLAN → PAYMENT PAGE
+    window.location.href = `/user/payment/${p._id}`;
   };
 
   return (
@@ -81,42 +99,49 @@ const PlanCard = ({ p }) => {
       )}
 
       <div>
-        {/* PLAN NAME */}
-        <h2 className="text-2xl font-bold text-slate-900">{p.name}</h2>
+        <h2 className="text-2xl font-bold text-slate-900">
+          {p.name}
+        </h2>
 
-        {/* PRICE */}
+        {/* PRICE SECTION */}
         <div className="mt-3 flex items-end gap-1">
-          <span className="text-4xl font-extrabold text-slate-900">
-            ₹{p.price}
-          </span>
-          <span className="text-slate-500">/month</span>
+          {isFree ? (
+            <span className="text-4xl font-extrabold text-green-600">Free</span>
+          ) : (
+            <>
+              <span className="text-4xl font-extrabold text-slate-900">₹{p.price}</span>
+              <span className="text-slate-500">/month</span>
+            </>
+          )}
         </div>
 
         <p className="text-slate-600 text-sm mt-1">{p.messages}</p>
 
         {/* FEATURES */}
         <div className="mt-5 space-y-3">
-          <Feature text={p.apiAccess} />
-          <Feature text={p.supportLevel} />
-
-          {p.features?.map((f, i) => (
-            <Feature key={i} text={f} />
-          ))}
+          {p.apiAccess && <Feature text={p.apiAccess} />}
+          {p.supportLevel && <Feature text={p.supportLevel} />}
+          {p.features?.map((f, i) => <Feature key={i} text={f} />)}
         </div>
       </div>
 
-      {/* CTA BUTTON */}
+      {/* BUTTON */}
       <button
         onClick={handleSelect}
-        className="w-full py-3 bg-slate-900 text-white rounded-xl font-semibold shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+        className={`
+          w-full py-3 rounded-xl font-semibold shadow-lg 
+          flex items-center justify-center gap-2 transition-all
+          ${isFree ? "bg-green-600 text-white hover:scale-[1.03]" : "bg-slate-900 text-white hover:scale-[1.02]"}
+        `}
       >
-        Choose Plan <ArrowRightCircle size={20} />
+        {isFree ? "Activate Free Plan" : "Choose Plan"} 
+        <ArrowRightCircle size={20} />
       </button>
     </div>
   );
 };
 
-/* FEATURE ROW */
+/* FEATURE ITEM */
 const Feature = ({ text }) => (
   <div className="flex items-center gap-2 text-slate-700">
     <Check className="text-green-600" size={18} />

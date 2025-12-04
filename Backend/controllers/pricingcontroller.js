@@ -38,3 +38,14 @@ export const deletePlan = async (req, res) => {
     res.status(500).json({ message: "Error deleting plan" });
   }
 };
+export const getPlanById = async (req, res) => {
+  try {
+    const plan = await Pricing.findById(req.params.id);
+    if (!plan) return res.status(404).json({ message: "Plan not found" });
+
+    res.json(plan);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching plan", error: err.message });
+  }
+};
+

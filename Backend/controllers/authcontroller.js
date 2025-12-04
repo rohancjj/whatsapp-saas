@@ -16,22 +16,20 @@ export const signup = async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
 
-    // Clean phone using global utility
+   
     const cleanedPhone = cleanPhone(phone);
 
-    // Create User
+    
     const user = await User.create({
       fullName,
       email,
       password: hash,
       phone: cleanedPhone,
       usageReason,
-      lastLogin: null, // used for "first login" detection
+      lastLogin: null, 
     });
 
-    /* ===========================
-       SEND NOTIFICATION TO USER
-    ============================ */
+    
     if (cleanedPhone) {
       await Notifications.sendToUser(
         user._id,
@@ -39,9 +37,7 @@ export const signup = async (req, res) => {
       );
     }
 
-    /* ===========================
-       SEND NOTIFICATION TO ADMIN
-    ============================ */
+  
     await Notifications.sendToAdmin(
       `🆕 *New User Registered*\n\n👤 Name: ${fullName}\n📧 Email: ${email}\n📱 Phone: ${cleanedPhone || "N/A"}`
     );
@@ -57,9 +53,9 @@ export const signup = async (req, res) => {
   }
 };
 
-/* =========================================
-   LOGIN
-========================================= */
+
+   
+
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -78,9 +74,8 @@ export const login = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    /* =========================================
-       FIRST TIME LOGIN NOTIFICATION TO ADMIN
-    ========================================== */
+    
+
     const isFirstLogin = !user.lastLogin;
 
     if (isFirstLogin) {
@@ -89,7 +84,7 @@ export const login = async (req, res) => {
       );
     }
 
-    // Update last login timestamp
+    
     user.lastLogin = new Date();
     await user.save();
 

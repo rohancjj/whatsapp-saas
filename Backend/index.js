@@ -12,6 +12,8 @@ import authroutes from "./routes/authroutes.js";
 import pricingroutes from "./routes/pricingroutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import paymentRoutes from './routes/paymentRoutes.js'
+import { upload } from "./middlewares/upload.js";
 
 import { loadAllSessionsOnStart } from "./services/whatsappManager.js";
 import { 
@@ -117,6 +119,8 @@ app.use("/auth", authroutes);
 app.use("/pricing", pricingroutes);
 app.use("/user", userRoutes);
 app.use("/admin", adminRoutes);
+app.use("/api/v1", paymentRoutes);
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 
 app.get("/", (req, res) => {

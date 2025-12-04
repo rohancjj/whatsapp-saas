@@ -7,6 +7,7 @@ import {
   Users,
   LogOut,
   Menu,
+  
   X,
 } from "lucide-react";
 
@@ -48,6 +49,11 @@ const AdminLayout = () => {
         name: "Users",
         icon: <Users size={20} />,
         path: "/admin/users",
+      },
+      {
+        name: "Payment Settings",
+        icon: <Users size={20} />,
+        path: "/admin/PaymentSettings",
       },
     ],
     []

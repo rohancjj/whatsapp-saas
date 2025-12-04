@@ -11,6 +11,8 @@ import AuthPage from "./website/pages/AuthPage";
 import Pricing from "./website/pages/Pricing";
 import UserDashboard from "./website/pages/UserDashboard";
 import ProtectedUser from "./routes/ProtectedUser";
+import PaymentPage from "./website/pages/PaymentPage";
+
 
 // ADMIN
 import ProtectedAdmin from "./routes/ProtectedAdmin";
@@ -18,6 +20,7 @@ import AdminLayout from "./admin/layout/AdminLayout";
 import AdminDashboard from "./admin/AdminDashboard";
 import AdminOffers from "./admin/AdminOffers";
 import UserManagement from "./admin/UserManagement";
+import AdminPaymentSettings from "./admin/AdminPaymentSettings";
 
 import { Outlet } from "react-router-dom";
 
@@ -60,6 +63,8 @@ export default function App() {
           >
             <Route path="pricing" element={<Pricing />} />
             <Route path="dashboard" element={<UserDashboard />} />
+            <Route path="/user/payment/:planId" element={<PaymentPage />} />
+
           </Route>
 
           {/* ================= ADMIN ROUTES ================= */}
@@ -73,7 +78,8 @@ export default function App() {
           >
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="offers" element={<AdminOffers />} />
-            <Route path="users" element={<UserManagement />} />  {/* ⭐ NEW */}
+            <Route path="users" element={<UserManagement />} />  
+            <Route path="PaymentSettings" element={<AdminPaymentSettings />} />  
           </Route>
 
         </Routes>
