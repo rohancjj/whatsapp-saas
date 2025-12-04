@@ -3,18 +3,14 @@ import { upload } from "../middlewares/upload.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import adminMiddleware from "../middlewares/adminMiddleware.js";
 
-// Controllers
+
 import * as paymentSettingsCtrl from "../controllers/paymentSettingsController.js";
 import * as manualPaymentCtrl from "../controllers/manualPaymentController.js";
 import * as adminManualCtrl from "../controllers/adminManualPaymentController.js";
 
 const router = express.Router();
 
-/* ---------------------------------------------------------
-   ADMIN PAYMENT SETTINGS
---------------------------------------------------------- */
 
-// GET current payment settings
 router.get(
   "/admin/payment-settings",
   authMiddleware,
@@ -29,7 +25,7 @@ router.get(
 );
 
 
-// UPDATE payment settings
+
 router.put(
   "/admin/payment-settings",
   authMiddleware,
@@ -42,17 +38,13 @@ router.put(
   paymentSettingsCtrl.updateSettings
 );
 
-/* ---------------------------------------------------------
-   USER MANUAL PAYMENTS
---------------------------------------------------------- */
 
-// Create manual payment
 router.post(
   "/payments/manual",
   authMiddleware,
   upload.single("screenshot"),
   (req, res, next) => {
-    // FIX: Ensure formData text values are properly available
+    
     if (req.body.planId === "undefined" || !req.body.planId) {
       req.body.planId = req.query.planId || req.headers["x-plan-id"];
     }
@@ -64,23 +56,17 @@ router.post(
 );
 
 
-// List user's manual payments
+
 router.get(
   "/payments/manual",
   authMiddleware,
   manualPaymentCtrl.listUserPayments
 );
 
-/* ---------------------------------------------------------
-   ADMIN MANUAL PAYMENT MANAGEMENT
---------------------------------------------------------- */
-
-// List all manual payments
-/* USER-SAFE PAYMENT SETTINGS */
 router.get("/payment-settings", paymentSettingsCtrl.getSettings);
 
 
-// Approve payment
+
 router.post(
   "/admin/manual-payments/:id/approve",
   authMiddleware,
@@ -88,7 +74,7 @@ router.post(
   adminManualCtrl.approvePayment
 );
 
-// Reject payment
+
 router.post(
   "/admin/manual-payments/:id/reject",
   authMiddleware,
@@ -96,7 +82,7 @@ router.post(
   adminManualCtrl.rejectPayment
 );
 
-// Delete payment
+
 router.delete(
   "/admin/manual-payments/:id",
   authMiddleware,

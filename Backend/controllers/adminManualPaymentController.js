@@ -1,4 +1,3 @@
-// adminManualPaymentController.js - FIXED VERSION
 
 import ManualPayment from "../models/ManualPayment.js";
 import User from "../models/User.js";
@@ -6,18 +5,16 @@ import Pricing from "../models/Pricing.js";
 import mongoose from "mongoose";
 import { Notifications } from "../services/sendNotification.js";
 
-/* ======================================================
-   LIST PAYMENTS (Admin View + Filter by Specific User)
-====================================================== */
+
 export const listPayments = async (req, res) => {
   try {
     const { status = "pending", page = 1, q, userId } = req.query;
 
     const filter = {};
 
-    // ✅ FIXED: Validate userId before using it
+   
     if (userId) {
-      // Check if userId is a valid ObjectId
+    
       if (!mongoose.Types.ObjectId.isValid(userId)) {
         return res.status(400).json({ 
           message: "Invalid user ID format",
@@ -51,9 +48,6 @@ export const listPayments = async (req, res) => {
 };
 
 
-/* ======================================================
-   APPROVE PAYMENT → Activate or Extend Existing Plan
-====================================================== */
 export const approvePayment = async (req, res) => {
   try {
     const paymentId = req.params.id;
@@ -134,9 +128,6 @@ export const approvePayment = async (req, res) => {
 };
 
 
-/* ======================================================
-   REJECT PAYMENT
-====================================================== */
 export const rejectPayment = async (req, res) => {
   try {
     const id = req.params.id;
@@ -177,9 +168,7 @@ export const rejectPayment = async (req, res) => {
 };
 
 
-/* ======================================================
-   DELETE PAYMENT
-====================================================== */
+
 export const deletePayment = async (req, res) => {
   try {
     const id = req.params.id;

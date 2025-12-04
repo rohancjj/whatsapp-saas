@@ -4,7 +4,7 @@ const pricingSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     price: { type: Number, required: true },      
-    messages: { type: String, required: true },    
+    messages: { type: Number, required: true },    
     apiAccess: { type: String, required: true },    
     supportLevel: { type: String, required: true},  
     features: [String],                            

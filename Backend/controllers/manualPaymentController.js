@@ -8,18 +8,18 @@ export const createManualPayment = async (req, res) => {
     const userId = req.user.id;
     const { planId, note, currency } = req.body;
 
-    // Validate plan selection
+   
     if (!planId) {
       return res.status(400).json({ message: "Plan selection is required." });
     }
 
-    // Fetch selected plan from DB
+ 
     const plan = await Pricing.findById(planId);
     if (!plan) {
       return res.status(400).json({ message: "Invalid plan selected." });
     }
 
-    // Screenshot required
+    
     const screenshotUrl = req.fileUrl || (req.file ? `/uploads/payments/${req.file.filename}` : null);
     if (!screenshotUrl) {
       return res.status(400).json({ message: "Screenshot is required." });
@@ -62,7 +62,7 @@ export const listUserPayments = async (req, res) => {
     const limit = 20;
 
     const payments = await ManualPayment.find({ userId })
-      .populate("planId", "name price")   // Show plan name & price to user
+      .populate("planId", "name price")   
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);

@@ -3,6 +3,8 @@ import crypto from "crypto";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import User from "../models/User.js";
 import WhatsAppSession from "../models/WhatsAppSession.js";
+import { resetIfNeeded } from "../utils/resetMessageLimit.js";
+
 
 import {
   createInstanceForUser,
@@ -195,6 +197,8 @@ router.post("/regenerate-key", authMiddleware, async (req, res) => {
 });
 
 
+
+
 router.post("/send", async (req, res) => {
   try {
     const apiKey =
@@ -206,13 +210,33 @@ router.post("/send", async (req, res) => {
     const session = await WhatsAppSession.findOne({ apiKey });
     if (!session) return res.status(404).json({ message: "Invalid API key" });
 
+    const user = await User.findById(session.userId).populate("activePlan.planId");
+
+    if (!user || !user.activePlan?.planId)
+      return res.status(403).json({ message: "No active plan found. Please subscribe." });
+
+    // 🔄 Reset if it's a new day
+    await resetIfNeeded(user);
+
+    const dailyLimit = user.activePlan.planId.messages; // 🟢 plan message quota per day
+    const usedToday = user.activePlan.messagesUsedToday;
+
+    // 🚫 If user exceeds daily limit: block sending
+    if (usedToday >= dailyLimit) {
+      return res.status(429).json({
+        message: "❌ Daily limit reached. Upgrade your plan or wait until tomorrow.",
+        limit: dailyLimit,
+        usedToday,
+        remainingToday: 0
+      });
+    }
+
     if (!session.connected)
       return res.status(400).json({ message: "WhatsApp not connected" });
 
-   
     const sock = getUserSock(session.userId.toString());
     if (!sock)
-      return res.status(500).json({ message: "WhatsApp instance offline" });
+      return res.status(500).json({ message: "WhatsApp session offline" });
 
     const { to, text } = req.body;
     if (!to || !text)
@@ -222,17 +246,25 @@ router.post("/send", async (req, res) => {
 
     await sock.sendMessage(jid, { text });
 
+    // ⬆ Increase daily + total usage
+    user.activePlan.messagesUsed += 1;
+    user.activePlan.messagesUsedToday += 1;
+    await user.save();
 
-    await User.findByIdAndUpdate(session.userId, {
-      $inc: { "activePlan.messagesUsed": 1 },
+    return res.json({
+      success: true,
+      message: "Message sent 👌",
+      usedToday: user.activePlan.messagesUsedToday,
+      limit: dailyLimit,
+      remainingToday: dailyLimit - user.activePlan.messagesUsedToday
     });
 
-    res.json({ success: true, message: "Message sent", to });
   } catch (err) {
     console.error("Send message error:", err);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 router.post("/disconnect", authMiddleware, async (req, res) => {

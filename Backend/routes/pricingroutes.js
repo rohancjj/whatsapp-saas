@@ -14,7 +14,7 @@ const router = Router();
 
 router.get("/", getPlans);
 
-// ⭐ NEW ROUTE FOR PAYMENT PAGE
+
 router.get("/:id", getPlanById);
 
 router.post("/create", authMiddleware, adminMiddleware, createPlan);

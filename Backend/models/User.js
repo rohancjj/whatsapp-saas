@@ -17,13 +17,15 @@ const userSchema = new mongoose.Schema(
       expiryAt: Date,
 
       messagesUsed: { type: Number, default: 0 },
+      messagesUsedToday: { type: Number, default: 0 }, 
+      resetAt: { type: Date },
       totalMessages: { type: Number, default: 0 },
 
-      apiKey: String, // ⭐ user API key for WhatsApp API
+      apiKey: String, 
 
-      whatsappSession: String, // ⭐ Baileys session data
-      qrCode: String,          // ⭐ last QR code sent
-      isConnected: { type: Boolean, default: false }, // ⭐ connection status
+      whatsappSession: String, 
+      qrCode: String,         
+      isConnected: { type: Boolean, default: false }, 
     },
   },
   { timestamps: true }
