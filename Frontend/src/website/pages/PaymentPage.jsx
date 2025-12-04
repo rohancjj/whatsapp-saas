@@ -28,6 +28,8 @@ export default function PaymentPage() {
   -------------------------------------- */
   useEffect(() => {
     fetch(`http://localhost:8080/pricing/${planId}`)
+
+
       .then((res) => res.json())
       .then((data) => {
         setPlan(data);
@@ -45,27 +47,31 @@ export default function PaymentPage() {
      SUBMIT MANUAL PAYMENT
   -------------------------------------- */
   const handleSubmitManualPayment = async () => {
-    if (!screenshot) return alert("Please upload payment screenshot!");
-    if (!plan) return alert("Plan not loaded");
+  if (!screenshot) return alert("Please upload payment screenshot!");
+  if (!plan) return alert("Plan not loaded");
 
-    const formData = new FormData();
-    formData.append("planId", planId);
-    formData.append("amount", plan.price); // ⭐ IMPORTANT → Fixes NaN
-    formData.append("currency", "INR");
-    formData.append("note", `Payment for ${plan.name}`);
-    formData.append("screenshot", screenshot);
+  const formData = new FormData();
+  formData.append("planId", planId);   // 🔥 REQUIRED
+  formData.append("amount", plan.price);
+  formData.append("currency", "INR");
+  formData.append("note", `Payment for ${plan.name}`);
+  formData.append("screenshot", screenshot);
 
-    const res = await fetch("http://localhost:8080/api/v1/payments/manual", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    });
+  const res = await fetch(`http://localhost:8080/api/v1/payments/manual?planId=${planId}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`, // DO NOT add content-type
+    },
+    body: formData,
+  });
 
-    if (!res.ok) return alert("Payment submission failed!");
+  const data = await res.json();
+  if (!res.ok) return alert(data.message || "Payment submission failed!");
 
-    alert("Payment submitted! Admin will verify.");
-    window.location.href = "/user/dashboard";
-  };
+  alert("Payment submitted successfully! Admin will verify.");
+  window.location.href = "/user/dashboard";
+};
+
 
   if (loading || !settings)
     return (

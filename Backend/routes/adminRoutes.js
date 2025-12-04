@@ -7,7 +7,6 @@ import { Notifications } from "../services/sendNotification.js";
 
 const router = express.Router();
 
-
 const adminOnly = (req, res, next) => {
   if (req.user.role !== "admin") {
     return res.status(403).json({ message: "Access Denied: Admin Only" });
@@ -17,24 +16,18 @@ const adminOnly = (req, res, next) => {
 
 router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
   try {
-   
     const totalUsers = await User.countDocuments();
-
-    
     const activeAPIKeys = await User.countDocuments({
       "activePlan.apiKey": { $exists: true, $ne: null }
     });
 
-    
     const connectedUsers = await WhatsAppSession.countDocuments({ connected: true });
     const disconnectedUsers = await WhatsAppSession.countDocuments({ connected: false });
 
-  
     const msgUsed = await User.aggregate([
       { $group: { _id: null, used: { $sum: "$activePlan.messagesUsed" } } }
     ]);
 
-    
     const msgLeft = await User.aggregate([
       {
         $group: {
@@ -48,12 +41,10 @@ router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
       }
     ]);
 
-   
     const lastWeekUsers = await User.countDocuments({
       createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
     });
 
-    
     res.json({
       totalUsers,
       activeAPIKeys,
@@ -62,7 +53,7 @@ router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
       totalMessagesUsed: msgUsed?.[0]?.used || 0,
       totalMessagesLeft: msgLeft?.[0]?.left || 0,
       recentUsers: lastWeekUsers,
-      revenue: 0, 
+      revenue: 0,
       system: {
         serverStatus: "online",
         apiLatency: Math.floor(Math.random() * 150) + 80,
@@ -75,8 +66,7 @@ router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
-
-
+// ✅ FIXED: Keep _id consistent with MongoDB
 router.get("/users", authMiddleware, adminOnly, async (req, res) => {
   try {
     const users = await User.find().select("-password");
@@ -93,7 +83,7 @@ router.get("/users", authMiddleware, adminOnly, async (req, res) => {
     });
 
     const final = users.map((u) => ({
-      id: u._id,
+      _id: u._id,  // ✅ KEEP AS _id FOR CONSISTENCY
       fullName: u.fullName,
       email: u.email,
       phone: u.phone,
@@ -115,7 +105,6 @@ router.get("/users", authMiddleware, adminOnly, async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });
-
 
 router.post("/disconnect/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
@@ -139,7 +128,6 @@ router.post("/disconnect/:userId", authMiddleware, adminOnly, async (req, res) =
   }
 });
 
-
 router.post("/suspend/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -159,7 +147,6 @@ router.post("/suspend/:userId", authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
-
 router.post("/unsuspend/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -178,7 +165,6 @@ router.post("/unsuspend/:userId", authMiddleware, adminOnly, async (req, res) =>
     res.status(500).json({ error: err.message });
   }
 });
-
 
 router.post("/terminate/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
@@ -215,7 +201,6 @@ router.post("/terminate/:userId", authMiddleware, adminOnly, async (req, res) =>
   }
 });
 
-
 router.post("/resume/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -237,7 +222,6 @@ router.post("/resume/:userId", authMiddleware, adminOnly, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 router.delete("/user/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {

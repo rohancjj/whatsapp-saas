@@ -1,30 +1,35 @@
 import ManualPayment from "../models/ManualPayment.js";
+import Pricing from "../models/Pricing.js";
 import User from "../models/User.js";
 import { Notifications } from "../services/sendNotification.js";
 
 export const createManualPayment = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { amount, note, currency } = req.body;
+    const { planId, note, currency } = req.body;
 
-    // validate amount
-    if (!amount || isNaN(Number(amount))) {
-      return res.status(400).json({ message: "Valid amount is required" });
+    // Validate plan selection
+    if (!planId) {
+      return res.status(400).json({ message: "Plan selection is required." });
     }
 
-    // screenshot URL
-    const screenshotUrl =
-      req.fileUrl ||
-      (req.file ? `/uploads/payments/${req.file.filename}` : null);
+    // Fetch selected plan from DB
+    const plan = await Pricing.findById(planId);
+    if (!plan) {
+      return res.status(400).json({ message: "Invalid plan selected." });
+    }
 
+    // Screenshot required
+    const screenshotUrl = req.fileUrl || (req.file ? `/uploads/payments/${req.file.filename}` : null);
     if (!screenshotUrl) {
-      return res.status(400).json({ message: "Screenshot is required" });
+      return res.status(400).json({ message: "Screenshot is required." });
     }
 
-    // Create payment entry
+    // Create manual payment request
     const payment = await ManualPayment.create({
       userId,
-      amount: Number(amount),
+      planId,
+      amount: Number(plan.price),  // Auto-assign amount based on plan
       currency: currency || "INR",
       method: "manual",
       note: note || "",
@@ -33,17 +38,22 @@ export const createManualPayment = async (req, res) => {
       updatedAt: new Date(),
     });
 
-    // notify admin
+    // Notify admin
     await Notifications.sendToAdmin(
-      `🧾 Manual payment submitted\nUser: ${userId}\nAmount: ₹${amount}`
+      `🧾 Manual Payment Request\n👤 User: ${userId}\n📦 Plan: ${plan.name}\n💰 Amount: ₹${plan.price}\n📥 Status: Pending Approval`
     );
 
-    res.json({ message: "Payment submitted successfully", payment });
+    res.json({
+      message: "Payment request submitted. Awaiting admin approval.",
+      payment,
+    });
+
   } catch (err) {
     console.error("❌ Manual Payment Error:", err);
     res.status(500).json({ message: "Internal Server Error", error: err.message });
   }
 };
+
 
 export const listUserPayments = async (req, res) => {
   try {
@@ -52,11 +62,13 @@ export const listUserPayments = async (req, res) => {
     const limit = 20;
 
     const payments = await ManualPayment.find({ userId })
+      .populate("planId", "name price")   // Show plan name & price to user
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
 
     res.json({ payments, page });
+
   } catch (err) {
     console.error("❌ List User Payments Error:", err);
     res.status(500).json({ message: "Internal Server Error", error: err.message });

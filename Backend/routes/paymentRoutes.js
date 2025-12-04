@@ -21,6 +21,13 @@ router.get(
   adminMiddleware,
   paymentSettingsCtrl.getSettings
 );
+router.get(
+  "/admin/manual-payments",
+  authMiddleware,
+  adminMiddleware,
+  adminManualCtrl.listPayments
+);
+
 
 // UPDATE payment settings
 router.put(
@@ -45,11 +52,17 @@ router.post(
   authMiddleware,
   upload.single("screenshot"),
   (req, res, next) => {
+    // FIX: Ensure formData text values are properly available
+    if (req.body.planId === "undefined" || !req.body.planId) {
+      req.body.planId = req.query.planId || req.headers["x-plan-id"];
+    }
+
     req.fileUrl = req.file ? `/uploads/payments/${req.file.filename}` : null;
     next();
   },
   manualPaymentCtrl.createManualPayment
 );
+
 
 // List user's manual payments
 router.get(
