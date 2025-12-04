@@ -10,6 +10,11 @@ import {
   CreditCard,
   CheckCircle,
   XCircle,
+  Power,
+  ShieldX,
+  Trash,
+  RefreshCw,
+  Slash
 } from "lucide-react";
 
 export default function UserManagement() {
@@ -60,12 +65,37 @@ export default function UserManagement() {
     );
   };
 
+  const userAction = async (user, action) => {
+    const endpointMap = {
+      suspend: `/admin/suspend/${user._id}`,
+      unsuspend: `/admin/unsuspend/${user._id}`,
+      disconnect: `/admin/disconnect/${user._id}`,
+      terminate: `/admin/terminate/${user._id}`,
+      resume: `/admin/resume/${user._id}`,
+      delete: `/admin/user/${user._id}`,
+    };
+
+    try {
+      await axios({
+        method: action === "delete" ? "delete" : "post",
+        url: `http://localhost:8080${endpointMap[action]}`,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      fetchUsers();
+      setOpenDropdown(null);
+    } catch (err) {
+      alert("Action failed.");
+      console.error(err);
+    }
+  };
+
   const openPaymentModal = async (user) => {
     setPaymentModal({ open: true, loading: true, payments: [], user });
 
     try {
       const res = await axios.get(
-        `http://localhost:8080/api/v1/admin/manual-payments?userId=${user._id || user.userId}&status=all`,
+        `http://localhost:8080/api/v1/admin/manual-payments?userId=${user._id}&status=all`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -130,7 +160,7 @@ export default function UserManagement() {
         </div>
       </div>
 
-      {/* Users Table */}
+      {/* User Table */}
       <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-100">
         <table className="w-full text-left">
           <thead>
@@ -193,13 +223,14 @@ export default function UserManagement() {
                     ⋯ Actions
                   </button>
 
+                  {/* ACTION DROPDOWN */}
                   <AnimatePresence>
                     {openDropdown === user._id && (
                       <motion.div
                         initial={{ opacity: 0, y: -6 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -6 }}
-                        className="absolute right-0 mt-2 w-48 bg-white rounded-xl border shadow-xl p-2 z-50"
+                        className="absolute right-0 mt-2 w-52 bg-white rounded-xl border shadow-xl p-2 z-50"
                       >
                         <button
                           onClick={() => {
@@ -209,6 +240,52 @@ export default function UserManagement() {
                           className="w-full px-3 py-2 text-left rounded-lg hover:bg-slate-100 text-sm flex items-center gap-2"
                         >
                           <CreditCard size={16} /> View Payments
+                        </button>
+
+                        {!user.suspended ? (
+                          <button
+                            onClick={() => userAction(user, "suspend")}
+                            className="w-full px-3 py-2 text-left rounded-lg hover:bg-slate-100 text-sm flex items-center gap-2"
+                          >
+                            <ShieldX size={16} /> Suspend User
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => userAction(user, "unsuspend")}
+                            className="w-full px-3 py-2 text-left rounded-lg hover:bg-green-100 text-sm text-green-700 flex items-center gap-2"
+                          >
+                            <RefreshCw size={16} /> Unsuspend User
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => userAction(user, "disconnect")}
+                          className="w-full px-3 py-2 text-left rounded-lg hover:bg-slate-100 text-sm flex items-center gap-2"
+                        >
+                          <Power size={16} /> Disconnect WhatsApp
+                        </button>
+
+                        {!user.terminated ? (
+                          <button
+                            onClick={() => userAction(user, "terminate")}
+                            className="w-full px-3 py-2 text-left rounded-lg hover:bg-red-100 text-sm text-red-700 flex items-center gap-2"
+                          >
+                            <Slash size={16} /> Terminate Account
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => userAction(user, "resume")}
+                            className="w-full px-3 py-2 text-left rounded-lg hover:bg-green-100 text-sm text-green-700 flex items-center gap-2"
+                          >
+                            <RefreshCw size={16} /> Resume Account
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => userAction(user, "delete")}
+                          className="w-full px-3 py-2 text-left rounded-lg hover:bg-red-200 text-sm text-red-800 flex items-center gap-2"
+                        >
+                          <Trash size={16} /> Delete Permanently
                         </button>
                       </motion.div>
                     )}
@@ -220,7 +297,7 @@ export default function UserManagement() {
         </table>
       </div>
 
-      {/* Payment Modal */}
+      {/* ---- Payment Modal ---- */}
       <AnimatePresence>
         {paymentModal.open && (
           <motion.div
