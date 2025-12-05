@@ -13,7 +13,10 @@ import pricingroutes from "./routes/pricingroutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import paymentRoutes from './routes/paymentRoutes.js'
+import notificationTemplateRoutes from './routes/notificationTemplatesroutes.js'
+import notificationsRoutes from './routes/notificationsroutes.js'
 import { upload } from "./middlewares/upload.js";
+
 
 import { loadAllSessionsOnStart } from "./services/whatsappManager.js";
 import { 
@@ -120,6 +123,8 @@ app.use("/pricing", pricingroutes);
 app.use("/user", userRoutes);
 app.use("/admin", adminRoutes);
 app.use("/api/v1", paymentRoutes);
+app.use("/api/notification-templates", notificationTemplateRoutes);
+app.use("/api/notifications", notificationsRoutes);
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 

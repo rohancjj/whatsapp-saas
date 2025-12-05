@@ -21,6 +21,7 @@ import AdminDashboard from "./admin/AdminDashboard";
 import AdminOffers from "./admin/AdminOffers";
 import UserManagement from "./admin/UserManagement";
 import AdminPaymentSettings from "./admin/AdminPaymentSettings";
+import TemplateManager from './admin/TemplateManager'
 
 import { Outlet } from "react-router-dom";
 
@@ -80,6 +81,7 @@ export default function App() {
             <Route path="offers" element={<AdminOffers />} />
             <Route path="users" element={<UserManagement />} />  
             <Route path="PaymentSettings" element={<AdminPaymentSettings />} />  
+            <Route path="TemplateManager" element={<TemplateManager />} />  
           </Route>
 
         </Routes>

@@ -18,12 +18,22 @@ import {
 } from "lucide-react";
 
 export default function UserManagement() {
+
   const [users, setUsers] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
   const [openDropdown, setOpenDropdown] = useState(null);
+
+  // CONFIRM MODAL STATE
+  const [confirmModal, setConfirmModal] = useState({
+    open: false,
+    user: null,
+    action: null,
+    message: ""
+  });
+
   const [paymentModal, setPaymentModal] = useState({
     open: false,
     loading: true,
@@ -43,9 +53,20 @@ export default function UserManagement() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      setUsers(res.data || []);
-      setFiltered(res.data || []);
+      const normalized = res.data.map(user => ({
+        ...user,
+        suspended: Boolean(user.suspended),
+        terminated: Boolean(user.terminated),
+        whatsapp: {
+          connected: Boolean(user.whatsapp?.connected),
+          ...user.whatsapp
+        }
+      }));
+
+      setUsers(normalized);
+      setFiltered(normalized);
       setLoading(false);
+
     } catch (err) {
       console.error("Fetch Error:", err);
       setLoading(false);
@@ -65,7 +86,10 @@ export default function UserManagement() {
     );
   };
 
-  const userAction = async (user, action) => {
+  // CONFIRMATION → ACTION
+  const executeAction = async () => {
+    const { user, action } = confirmModal;
+
     const endpointMap = {
       suspend: `/admin/suspend/${user._id}`,
       unsuspend: `/admin/unsuspend/${user._id}`,
@@ -82,12 +106,36 @@ export default function UserManagement() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      fetchUsers();
-      setOpenDropdown(null);
+      setConfirmModal({ open: false, user: null, action: null });
+
+      setTimeout(() => {
+        fetchUsers();
+      }, 400);
+
     } catch (err) {
       alert("Action failed.");
       console.error(err);
     }
+  };
+
+  const askConfirm = (user, action) => {
+    const messages = {
+      suspend: `Suspend access for ${user.fullName}?`,
+      unsuspend: `Restore access for ${user.fullName}?`,
+      terminate: `Terminate account for ${user.fullName}?`,
+      resume: `Restore terminated account for ${user.fullName}?`,
+      disconnect: `Disconnect WhatsApp session for ${user.fullName}?`,
+      delete: `Delete ${user.fullName} permanently? This action cannot be undone.`
+    };
+
+    setConfirmModal({
+      open: true,
+      user,
+      action,
+      message: messages[action],
+    });
+
+    setOpenDropdown(null);
   };
 
   const openPaymentModal = async (user) => {
@@ -111,287 +159,175 @@ export default function UserManagement() {
     }
   };
 
-  const approvePayment = async (id) => {
-    await axios.post(
-      `http://localhost:8080/api/v1/admin/manual-payments/${id}/approve`,
-      {},
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    openPaymentModal(paymentModal.user);
-    fetchUsers();
-  };
-
-  const rejectPayment = async (id) => {
-    await axios.post(
-      `http://localhost:8080/api/v1/admin/manual-payments/${id}/reject`,
-      {},
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    openPaymentModal(paymentModal.user);
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-96">
-        <motion.div
-          className="h-10 w-10 border-4 rounded-full border-slate-300 border-t-slate-900"
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 0.9, ease: "linear" }}
-        />
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="flex justify-center items-center h-96">
+      <motion.div
+        className="h-10 w-10 border-4 rounded-full border-slate-300 border-t-slate-900"
+        animate={{ rotate: 360 }}
+        transition={{ repeat: Infinity, duration: 0.9, ease: "linear" }}
+      />
+    </div>
+  );
 
   return (
     <div className="p-6 space-y-8 animate-fadeIn">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-slate-900">User Management</h1>
 
+      {/* HEADER */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">User Management</h1>
         <div className="relative">
           <Search className="absolute left-3 top-2 text-slate-400" size={18} />
           <input
-            type="text"
             value={search}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={(e)=>handleSearch(e.target.value)}
             placeholder="Search users…"
-            className="pl-10 pr-4 py-2 w-60 rounded-xl border bg-slate-50 focus:ring-2 focus:ring-black outline-none"
+            className="pl-10 pr-4 py-2 w-60 rounded-xl border bg-slate-50 focus:ring-2 focus:ring-black"
           />
         </div>
       </div>
 
-      {/* User Table */}
+      {/* USER TABLE */}
       <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-100">
         <table className="w-full text-left">
           <thead>
-            <tr className="text-slate-500 border-b text-sm">
-              <th className="py-2">User</th>
-              <th>Email</th>
-              <th>Plan</th>
-              <th>API Key</th>
-              <th>Status</th>
-              <th></th>
+            <tr className="text-sm text-slate-500 border-b">
+              <th>User</th><th>Email</th><th>Plan</th>
+              <th>API Key</th><th>Status</th><th></th>
             </tr>
           </thead>
 
           <tbody>
             {filtered.map((user) => (
-              <tr key={user._id} className="border-b hover:bg-slate-50 transition">
-                <td className="py-4 flex items-center gap-3">
+              <tr key={user._id} className="border-b">
+
+                {/* USER INFO */}
+                <td className="py-4 flex gap-3">
                   <UserCircle size={32} className="text-slate-400" />
                   <div>
                     <p className="font-medium">{user.fullName}</p>
-                    <p className="text-xs text-slate-500">{user.phone}</p>
+                    <p className="text-xs text-gray-500">{user.phone}</p>
                   </div>
                 </td>
 
-                <td className="text-sm flex items-center gap-1 text-slate-700">
-                  <Mail size={16} /> {user.email}
+                {/* EMAIL */}
+                <td className="flex gap-1 items-center text-sm">
+                  <Mail size={16}/> {user.email}
                 </td>
 
+                {/* PLAN */}
                 <td>{user.activePlan?.name || "No Plan"}</td>
 
+                {/* API KEY */}
                 <td>
-                  {user.activePlan?.apiKey ? (
-                    <span className="text-xs bg-slate-100 px-2 py-1 rounded">
-                      {user.activePlan.apiKey.slice(0, 12)}...
-                    </span>
-                  ) : (
-                    "-"
-                  )}
+                  {user.activePlan?.apiKey 
+                    ? <span className="text-xs bg-slate-100 px-2 py-1 rounded">{user.activePlan.apiKey.slice(0,10)}...</span>
+                    : "-"
+                  }
                 </td>
 
+                {/* WHATSAPP STATUS */}
                 <td>
-                  {user.whatsapp?.connected ? (
-                    <span className="flex items-center text-green-600 gap-1">
-                      <Wifi size={18} /> Online
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-red-600">
-                      <WifiOff size={18} /> Offline
-                    </span>
-                  )}
+                  {user.whatsapp?.connected 
+                    ? <span className="text-green-600 flex gap-1"><Wifi size={18}/>Online</span>
+                    : <span className="text-red-600 flex gap-1"><WifiOff size={18}/>Offline</span>
+                  }
                 </td>
 
+                {/* ACTION MENU */}
                 <td className="relative">
-                  <button
-                    className="px-3 py-1 bg-black text-white rounded-lg text-xs hover:bg-gray-800"
-                    onClick={() =>
-                      setOpenDropdown(openDropdown === user._id ? null : user._id)
-                    }
-                  >
-                    ⋯ Actions
-                  </button>
+                  <button 
+                    className="px-3 py-1 text-xs bg-black text-white rounded-lg"
+                    onClick={() => setOpenDropdown(openDropdown === user._id ? null : user._id)}
+                  >⋯ Actions</button>
 
-                  {/* ACTION DROPDOWN */}
                   <AnimatePresence>
-                    {openDropdown === user._id && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -6 }}
-                        className="absolute right-0 mt-2 w-52 bg-white rounded-xl border shadow-xl p-2 z-50"
+                  {openDropdown === user._id && (
+                    <motion.div
+                      initial={{opacity:0,y:-6}}
+                      animate={{opacity:1,y:0}}
+                      exit={{opacity:0,y:-6}}
+                      className="absolute right-0 mt-2 p-2 w-52 bg-white border shadow rounded-xl z-50"
+                    >
+                      <button className="w-full px-3 py-2 text-left hover:bg-gray-100 text-sm flex gap-2"
+                        onClick={()=>openPaymentModal(user)}>
+                        <CreditCard size={16}/>View Payments
+                      </button>
+
+                      {/* Suspend / Unsuspend */}
+                      <button
+                        onClick={() => askConfirm(user, user.suspended ? "unsuspend" : "suspend")}
+                        className="w-full px-3 py-2 text-left hover:bg-gray-100 text-sm flex gap-2"
                       >
-                        <button
-                          onClick={() => {
-                            openPaymentModal(user);
-                            setOpenDropdown(null);
-                          }}
-                          className="w-full px-3 py-2 text-left rounded-lg hover:bg-slate-100 text-sm flex items-center gap-2"
-                        >
-                          <CreditCard size={16} /> View Payments
-                        </button>
+                        {user.suspended ? <RefreshCw size={16}/> : <ShieldX size={16}/>}
+                        {user.suspended ? "Unsuspend User" : "Suspend User"}
+                      </button>
 
-                        {!user.suspended ? (
-                          <button
-                            onClick={() => userAction(user, "suspend")}
-                            className="w-full px-3 py-2 text-left rounded-lg hover:bg-slate-100 text-sm flex items-center gap-2"
-                          >
-                            <ShieldX size={16} /> Suspend User
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => userAction(user, "unsuspend")}
-                            className="w-full px-3 py-2 text-left rounded-lg hover:bg-green-100 text-sm text-green-700 flex items-center gap-2"
-                          >
-                            <RefreshCw size={16} /> Unsuspend User
-                          </button>
-                        )}
+                      {/* WhatsApp */}
+                      <button
+                        onClick={() => askConfirm(user,"disconnect")}
+                        className="w-full px-3 py-2 text-left hover:bg-gray-100 text-sm flex gap-2"
+                      >
+                        <Power size={16}/> Disconnect WhatsApp
+                      </button>
 
-                        <button
-                          onClick={() => userAction(user, "disconnect")}
-                          className="w-full px-3 py-2 text-left rounded-lg hover:bg-slate-100 text-sm flex items-center gap-2"
-                        >
-                          <Power size={16} /> Disconnect WhatsApp
-                        </button>
+                      {/* Terminate / Resume */}
+                      <button
+                        onClick={() => askConfirm(user,user.terminated ? "resume" : "terminate")}
+                        className={`w-full px-3 py-2 text-left text-sm flex gap-2 ${
+                          user.terminated ? "text-green-600" : "text-red-600"
+                        }`}
+                      >
+                        {user.terminated ? <RefreshCw size={16}/> : <Slash size={16}/> }
+                        {user.terminated ? "Restore Account" : "Terminate Account"}
+                      </button>
 
-                        {!user.terminated ? (
-                          <button
-                            onClick={() => userAction(user, "terminate")}
-                            className="w-full px-3 py-2 text-left rounded-lg hover:bg-red-100 text-sm text-red-700 flex items-center gap-2"
-                          >
-                            <Slash size={16} /> Terminate Account
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => userAction(user, "resume")}
-                            className="w-full px-3 py-2 text-left rounded-lg hover:bg-green-100 text-sm text-green-700 flex items-center gap-2"
-                          >
-                            <RefreshCw size={16} /> Resume Account
-                          </button>
-                        )}
-
-                        <button
-                          onClick={() => userAction(user, "delete")}
-                          className="w-full px-3 py-2 text-left rounded-lg hover:bg-red-200 text-sm text-red-800 flex items-center gap-2"
-                        >
-                          <Trash size={16} /> Delete Permanently
-                        </button>
-                      </motion.div>
-                    )}
+                      <button
+                        onClick={() => askConfirm(user,"delete")}
+                        className="w-full px-3 py-2 text-left hover:bg-red-100 text-sm text-red-800 flex gap-2"
+                      >
+                        <Trash size={16}/>Delete Permanently
+                      </button>
+                    </motion.div>
+                  )}
                   </AnimatePresence>
                 </td>
+
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* ---- Payment Modal ---- */}
+      {/* CONFIRMATION MODAL */}
       <AnimatePresence>
-        {paymentModal.open && (
-          <motion.div
-            onClick={(e) => e.target === e.currentTarget && setPaymentModal({ open: false })}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50 px-4"
+      {confirmModal.open && (
+        <motion.div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-center z-50"
+          initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+        >
+          <motion.div 
+            className="bg-white p-6 w-96 rounded-3xl shadow-xl text-center"
+            initial={{scale:0.9}} animate={{scale:1}}
           >
-            <motion.div
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              className="bg-white w-full max-w-xl p-6 rounded-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
-            >
-              <h2 className="text-2xl font-semibold text-slate-900">Payment History</h2>
-              <p className="text-sm text-slate-500 mb-4">
-                {paymentModal.user?.fullName} — {paymentModal.user?.email}
-              </p>
+            <h2 className="text-xl font-semibold mb-2">Are you sure?</h2>
+            <p className="text-gray-600 mb-5">{confirmModal.message}</p>
 
-              {paymentModal.loading ? (
-                <div className="flex justify-center py-8">
-                  <motion.div
-                    className="h-8 w-8 border-4 rounded-full border-slate-300 border-t-black"
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 0.8 }}
-                  />
-                </div>
-              ) : paymentModal.payments.length === 0 ? (
-                <p className="text-center text-slate-500 py-10">No payments found.</p>
-              ) : (
-                paymentModal.payments.map((payment) => (
-                  <motion.div
-                    key={payment._id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="border rounded-2xl p-4 my-4 shadow bg-slate-50"
-                  >
-                    <div className="flex justify-between items-center">
-                      <p className="font-medium">{payment.planId?.name}</p>
-
-                      <span
-                        className={`px-3 py-1 text-xs rounded-full ${
-                          payment.status === "approved"
-                            ? "bg-green-100 text-green-700"
-                            : payment.status === "rejected"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-yellow-100 text-yellow-700"
-                        }`}
-                      >
-                        {payment.status.toUpperCase()}
-                      </span>
-                    </div>
-
-                    <p className="text-sm text-slate-600 mt-1">Amount: ₹{payment.amount}</p>
-
-                    {payment.screenshotUrl && (
-                      <img
-                        src={`http://localhost:8080${payment.screenshotUrl}`}
-                        className="w-full rounded-xl mt-3 shadow"
-                        alt="Payment proof"
-                      />
-                    )}
-
-                    {payment.status === "pending" && (
-                      <div className="flex gap-3 mt-4">
-                        <button
-                          onClick={() => approvePayment(payment._id)}
-                          className="flex-1 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700"
-                        >
-                          <CheckCircle size={16} className="inline mr-1" /> Approve
-                        </button>
-
-                        <button
-                          onClick={() => rejectPayment(payment._id)}
-                          className="flex-1 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700"
-                        >
-                          <XCircle size={16} className="inline mr-1" /> Reject
-                        </button>
-                      </div>
-                    )}
-                  </motion.div>
-                ))
-              )}
+            <div className="flex gap-3">
+              <button
+                onClick={()=>setConfirmModal({open:false})}
+                className="w-1/2 py-2 bg-gray-200 rounded-xl hover:bg-gray-300"
+              >Cancel</button>
 
               <button
-                onClick={() => setPaymentModal({ open: false })}
-                className="w-full mt-4 py-3 rounded-xl bg-black text-white hover:bg-gray-800 transition"
-              >
-                Close
-              </button>
-            </motion.div>
+                onClick={executeAction}
+                className="w-1/2 py-2 bg-black text-white rounded-xl hover:bg-gray-800"
+              >Yes, Continue</button>
+            </div>
           </motion.div>
-        )}
+        </motion.div>
+      )}
       </AnimatePresence>
+
     </div>
   );
 }

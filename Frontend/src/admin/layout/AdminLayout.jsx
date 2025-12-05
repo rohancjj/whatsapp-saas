@@ -5,11 +5,13 @@ import {
   LayoutDashboard,
   Percent,
   Users,
+  Cog,
+  FileText,
   LogOut,
   Menu,
-  
   X,
 } from "lucide-react";
+
 
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -52,8 +54,13 @@ const AdminLayout = () => {
       },
       {
         name: "Payment Settings",
-        icon: <Users size={20} />,
+        icon: <Cog size={20} />,
         path: "/admin/PaymentSettings",
+      },
+      {
+        name: "Template Manager",
+        icon: <FileText size={20} />,
+        path: "/admin/TemplateManager",
       },
     ],
     []
