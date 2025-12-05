@@ -307,7 +307,7 @@ export default function PremiumAuth() {
             </div>
           )}
 
-          {/* Signup Form */}
+          
           {mode === "signup" && (
             <div className="space-y-6">
               <div>

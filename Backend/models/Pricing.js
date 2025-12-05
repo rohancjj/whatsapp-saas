@@ -5,7 +5,7 @@ const pricingSchema = new mongoose.Schema(
     name: { type: String, required: true },
     price: { type: Number, required: true },      
     messages: { type: Number, required: true },    
-    apiAccess: { type: String, required: true },    
+    apiAccess: { type: String, required: true }, //jo user use krega   
     supportLevel: { type: String, required: true},  
     features: [String],                            
     isFeatured: { type: Boolean, default: false },
