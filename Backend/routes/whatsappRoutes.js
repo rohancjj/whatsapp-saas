@@ -4,6 +4,12 @@ import authMiddleware from "../middlewares/authMiddleware.js";
 import User from "../models/User.js";
 import WhatsAppSession from "../models/WhatsAppSession.js";
 import { resetIfNeeded } from "../utils/resetMessageLimit.js";
+import axios from "axios";
+import mime from "mime-types";
+import https from "https";
+
+
+
 
 
 import {
@@ -199,35 +205,30 @@ router.post("/regenerate-key", authMiddleware, async (req, res) => {
 
 
 
+
+
 router.post("/send", async (req, res) => {
   try {
     const apiKey =
       req.headers["x-api-key"] ||
       req.headers.authorization?.split(" ")[1];
 
-    if (!apiKey) return res.status(401).json({ message: "API key missing" });
+    if (!apiKey)
+      return res.status(401).json({ message: "API key missing" });
 
     const session = await WhatsAppSession.findOne({ apiKey });
     if (!session) return res.status(404).json({ message: "Invalid API key" });
 
     const user = await User.findById(session.userId).populate("activePlan.planId");
+    if (!user) return res.status(403).json({ message: "No active plan found" });
 
-    if (!user || !user.activePlan?.planId)
-      return res.status(403).json({ message: "No active plan found. Please subscribe." });
-
-    
     await resetIfNeeded(user);
 
-    const dailyLimit = user.activePlan.planId.messages; 
-    const usedToday = user.activePlan.messagesUsedToday;
-
-    
-    if (usedToday >= dailyLimit) {
+    if (user.activePlan.messagesUsedToday >= user.activePlan.planId.messages) {
       return res.status(429).json({
-        message: "❌ Daily limit reached. Upgrade your plan or wait until tomorrow.",
-        limit: dailyLimit,
-        usedToday,
-        remainingToday: 0
+        message: "Daily limit reached",
+        used: user.activePlan.messagesUsedToday,
+        limit: user.activePlan.planId.messages
       });
     }
 
@@ -238,32 +239,98 @@ router.post("/send", async (req, res) => {
     if (!sock)
       return res.status(500).json({ message: "WhatsApp session offline" });
 
-    const { to, text } = req.body;
-    if (!to || !text)
-      return res.status(400).json({ message: "Missing 'to' or 'text' fields" });
+    const { to, type, text, image_url, file_url, button, template } = req.body;
+
+    if (!to || !type)
+      return res.status(400).json({ message: "Missing fields: to, type" });
 
     const jid = to.includes("@") ? to : `${to}@s.whatsapp.net`;
 
-    await sock.sendMessage(jid, { text });
+    let messageOptions = {};
 
-    
+   
+    switch (type.toLowerCase()) {
+
+     
+      case "text":
+        if (!text) return res.status(400).json({ message: "Text required" });
+        messageOptions = { text };
+        break;
+
+   
+      case "image":
+        if (!image_url) return res.status(400).json({ message: "image_url required" });
+        messageOptions = {
+          image: { url: image_url },
+          caption: text || ""
+        };
+        break;
+
+ 
+      case "file":
+      case "document":
+        if (!file_url) return res.status(400).json({ message: "file_url required" });
+
+        messageOptions = {
+          document: { url: file_url },
+          mimetype: mime.lookup(file_url) || "application/octet-stream",
+          fileName: file_url.split("/").pop() || "file",
+          caption: text || ""
+        };
+        break;
+
+
+      case "button":
+        if (!button || !button.body || !button.buttons)
+          return res.status(400).json({ message: "Invalid button payload" });
+
+        messageOptions = {
+          text: button.body,
+          footer: button.footer || "",
+          buttons: button.buttons,
+          headerType: 1
+        };
+        break;
+
+      
+      case "template":
+        if (!template)
+          return res.status(400).json({ message: "template payload required" });
+
+        messageOptions = template;
+        break;
+
+      default:
+        return res.status(400).json({ message: "Invalid message type" });
+    }
+
+
+    const result = await sock.sendMessage(jid, messageOptions);
+
+
     user.activePlan.messagesUsed += 1;
     user.activePlan.messagesUsedToday += 1;
     await user.save();
 
     return res.json({
       success: true,
-      message: "Message sent 👌",
+      message: "Message sent successfully ✨",
+      messageId: result.key.id,
       usedToday: user.activePlan.messagesUsedToday,
-      limit: dailyLimit,
-      remainingToday: dailyLimit - user.activePlan.messagesUsedToday
+      limit: user.activePlan.planId.messages,
+      remainingToday: user.activePlan.planId.messages - user.activePlan.messagesUsedToday
     });
 
   } catch (err) {
-    console.error("Send message error:", err);
-    res.status(500).json({ error: err.message });
+    console.error("❌ Send Error:", err);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: err.message
+    });
   }
 });
+
+
 
 
 
