@@ -4,6 +4,7 @@ import WhatsAppSession from "../models/WhatsAppSession.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import { getUserSock } from "../services/whatsappManager.js";
 import { Notifications } from "../services/sendNotification.js";
+import { SYSTEM_EVENTS } from "../constants/systemEvents.js";
 
 const router = express.Router();
 
@@ -68,7 +69,6 @@ router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
-
 /* ================================
    👥 GET ALL USERS
 ================================ */
@@ -111,7 +111,6 @@ router.get("/users", authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
-
 /* ================================
    🔌 DISCONNECT USER WHATSAPP
 ================================ */
@@ -124,7 +123,7 @@ router.post("/disconnect/:userId", authMiddleware, adminOnly, async (req, res) =
 
     await WhatsAppSession.updateOne({ userId }, { connected: false });
 
-    await Notifications.sendTemplateToUser(userId, "user_whatsapp_disconnected");
+    await Notifications.sendSystemTemplate(userId, SYSTEM_EVENTS.USER_DISCONNECTED);
 
     res.json({ message: "User WhatsApp disconnected" });
 
@@ -134,7 +133,6 @@ router.post("/disconnect/:userId", authMiddleware, adminOnly, async (req, res) =
   }
 });
 
-
 /* ================================
    ⛔ SUSPEND USER
 ================================ */
@@ -142,7 +140,7 @@ router.post("/suspend/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     await User.findByIdAndUpdate(req.params.userId, { suspended: true });
 
-    await Notifications.sendTemplateToUser(req.params.userId, "user_suspended");
+    await Notifications.sendSystemTemplate(req.params.userId, SYSTEM_EVENTS.USER_SUSPENDED);
 
     res.json({ message: "User suspended" });
 
@@ -152,7 +150,6 @@ router.post("/suspend/:userId", authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
-
 /* ================================
    ✔️ UNSUSPEND USER
 ================================ */
@@ -160,7 +157,7 @@ router.post("/unsuspend/:userId", authMiddleware, adminOnly, async (req, res) =>
   try {
     await User.findByIdAndUpdate(req.params.userId, { suspended: false });
 
-    await Notifications.sendTemplateToUser(req.params.userId, "user_unsuspended");
+    await Notifications.sendSystemTemplate(req.params.userId, SYSTEM_EVENTS.USER_UNSUSPENDED);
 
     res.json({ message: "User unsuspended" });
 
@@ -169,7 +166,6 @@ router.post("/unsuspend/:userId", authMiddleware, adminOnly, async (req, res) =>
     res.status(500).json({ error: err.message });
   }
 });
-
 
 /* ================================
    🚫 TERMINATE USER (Ban)
@@ -189,7 +185,7 @@ router.post("/terminate/:userId", authMiddleware, adminOnly, async (req, res) =>
       activePlan: {}
     });
 
-    await Notifications.sendTemplateToUser(userId, "user_terminated");
+    await Notifications.sendSystemTemplate(userId, SYSTEM_EVENTS.USER_TERMINATED);
 
     res.json({ message: "User terminated (banned)" });
 
@@ -198,7 +194,6 @@ router.post("/terminate/:userId", authMiddleware, adminOnly, async (req, res) =>
     res.status(500).json({ error: err.message });
   }
 });
-
 
 /* ================================
    🔄 RESTORE USER
@@ -210,7 +205,7 @@ router.post("/resume/:userId", authMiddleware, adminOnly, async (req, res) => {
       suspended: false
     });
 
-    await Notifications.sendTemplateToUser(req.params.userId, "user_restored");
+    await Notifications.sendSystemTemplate(req.params.userId, SYSTEM_EVENTS.USER_RESTORED);
 
     res.json({ message: "User restored" });
 
@@ -219,7 +214,6 @@ router.post("/resume/:userId", authMiddleware, adminOnly, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 /* ================================
    🗑️ DELETE USER PERMANENTLY
@@ -234,7 +228,7 @@ router.delete("/user/:userId", authMiddleware, adminOnly, async (req, res) => {
     await WhatsAppSession.findOneAndDelete({ userId });
     await User.findByIdAndDelete(userId);
 
-    await Notifications.sendTemplateToUser(userId, "user_deleted");
+    await Notifications.sendSystemTemplate(userId, SYSTEM_EVENTS.USER_DELETED);
 
     res.json({ message: "User permanently deleted" });
 

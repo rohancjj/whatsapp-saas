@@ -5,6 +5,8 @@ import NotificationTemplate from "../models/NotificationTemplate.js";
 
 import { toJID } from "../utils/phoneUtils.js";
 import { applyTemplate } from "../utils/templateEngine.js";
+import { SYSTEM_EVENTS } from "../constants/systemEvents.js";
+
 
 export const Notifications = {
 
@@ -274,4 +276,33 @@ export const Notifications = {
       return { success: false, error: err.message };
     }
   },
+
+
+
+  sendSystemTemplate: async (userId, systemEvent, variables = {}) => {
+    try {
+      const template = await NotificationTemplate.findOne({ systemEvent });
+
+      if (!template) {
+        console.log(`⚠️ No template mapped for system event: ${systemEvent}`);
+        // optional: fallback basic message instead of failing silently
+        return {
+          success: false,
+          error: `No template assigned to ${systemEvent}`,
+        };
+      }
+
+      return await Notifications.sendTemplateToUser(
+        userId,
+        template.name,
+        variables
+      );
+    } catch (err) {
+      console.error("❌ Error in sendSystemTemplate:", err.message);
+      return { success: false, error: err.message };
+    }
+  },
 };
+
+
+
