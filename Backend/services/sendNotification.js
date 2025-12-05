@@ -28,9 +28,7 @@ export const Notifications = {
     return { phone: null, usedWhatsAppNumber: false };
   },
 
-  /* ============================
-     📩 Send Plain Message
-  ============================= */
+
   sendToUser: async (userId, text) => {
     try {
       const adminSock = getAdminSock();
@@ -53,9 +51,6 @@ export const Notifications = {
     }
   },
 
-  /* ============================
-     📩 Send Message via Phone Only
-  ============================= */
   sendToUserByPhone: async (phone, text) => {
     try {
       const adminSock = getAdminSock();
@@ -75,9 +70,7 @@ export const Notifications = {
     }
   },
 
-  /* ============================
-     👑 Send To Admin
-  ============================= */
+
   sendToAdmin: async (text) => {
     try {
       const adminSock = getAdminSock();
@@ -97,9 +90,7 @@ export const Notifications = {
     }
   },
 
-  /* ============================
-     📤 Send Template to One User
-  ============================= */
+
   sendTemplateToUser: async (userId, templateName, variables = {}) => {
     try {
       const template = await NotificationTemplate.findOne({ name: templateName });
@@ -135,9 +126,6 @@ export const Notifications = {
     }
   },
 
-  /* ============================
-     📤 Send Template to All Users
-  ============================= */
   sendTemplateToAllUsers: async (templateName, variables = {}) => {
     try {
       const users = await User.find({});
@@ -147,7 +135,7 @@ export const Notifications = {
         await Notifications.sendTemplateToUser(user._id, templateName, variables);
         sent++;
 
-        await new Promise(res => setTimeout(res, 800)); // rate limit
+        await new Promise(res => setTimeout(res, 800)); 
       }
 
       return { success: true, sent };
@@ -158,9 +146,7 @@ export const Notifications = {
     }
   },
 
-  /* ============================
-     🏷 Send Event Template
-  ============================= */
+
   sendSystemTemplate: async (userId, systemEvent, variables = {}) => {
     try {
       const template = await NotificationTemplate.findOne({ systemEvent });
@@ -178,9 +164,7 @@ export const Notifications = {
     }
   },
 
-  /* ============================
-     🚀 NEW: Send System Event to All
-  ============================= */
+ 
   sendSystemTemplateToAll: async (systemEvent, variables = {}) => {
     try {
       const template = await NotificationTemplate.findOne({ systemEvent });
@@ -193,7 +177,7 @@ export const Notifications = {
         await Notifications.sendTemplateToUser(user._id, template.name, variables);
         count++;
 
-        await new Promise(res => setTimeout(res, 800)); // prevent WhatsApp block
+        await new Promise(res => setTimeout(res, 800)); 
       }
 
       console.log(`📢 Broadcast Complete → ${systemEvent} → ${count} users`);

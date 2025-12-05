@@ -5,7 +5,6 @@ import { Notifications } from "../services/sendNotification.js";
 import { cleanPhone } from "../utils/phoneUtils.js";
 import { SYSTEM_EVENTS } from "../constants/systemEvents.js";
 
-
 export const signup = async (req, res) => {
   try {
     const { fullName, email, password, phone, usageReason } = req.body;
@@ -16,7 +15,6 @@ export const signup = async (req, res) => {
     }
 
     const hash = await bcrypt.hash(password, 10);
-
     const cleanedPhone = cleanPhone(phone);
 
     const user = await User.create({
@@ -29,22 +27,25 @@ export const signup = async (req, res) => {
     });
 
     
-    await Notifications.sendSystemTemplate(user._id, SYSTEM_EVENTS.USER_SIGNUP, {
-      name: fullName,
-      email,
-      phone: cleanedPhone,
-    });
-
+    const userNotification = await Notifications.sendSystemTemplate(
+      user._id, 
+      SYSTEM_EVENTS.USER_SIGNUP, 
+      { name: fullName, email, phone: cleanedPhone }
+    );
     
-    await Notifications.sendSystemTemplateToAdmin(
-  SYSTEM_EVENTS.ADMIN_NEW_USER,
-  {
-    name: fullName,
-    email,
-    phone: cleanedPhone,
-  }
-);
+    if (!userNotification.success) {
+      console.error("Failed to send user signup notification:", userNotification.error);
+    }
 
+
+    const adminNotification = await Notifications.sendSystemTemplateToAdmin(
+      SYSTEM_EVENTS.ADMIN_NEW_USER,
+      { name: fullName, email, phone: cleanedPhone }
+    );
+    
+    if (!adminNotification.success) {
+      console.error("Failed to notify admin of new user:", adminNotification.error);
+    }
 
     return res.json({
       message: "Account created successfully.",
@@ -52,13 +53,10 @@ export const signup = async (req, res) => {
     });
 
   } catch (err) {
-    console.log("Signup error:", err);
+    console.error("Signup error:", err);
     res.status(500).json({ message: "Signup error", error: err.message });
   }
 };
-
-
-
 
 export const login = async (req, res) => {
   try {
@@ -78,16 +76,16 @@ export const login = async (req, res) => {
 
     const isFirstLogin = !user.lastLogin;
 
+   
     if (isFirstLogin) {
-     
-      await Notifications.sendSystemTemplateToAdmin(
-        user._id,
+      const adminNotification = await Notifications.sendSystemTemplateToAdmin(
         SYSTEM_EVENTS.ADMIN_FIRST_LOGIN,
-        {
-          name: user.fullName,
-          email: user.email,
-        }
+        { name: user.fullName, email: user.email, phone: user.phone }
       );
+      
+      if (!adminNotification.success) {
+        console.error("Failed to notify admin of first login:", adminNotification.error);
+      }
     }
 
     user.lastLogin = new Date();
@@ -105,7 +103,7 @@ export const login = async (req, res) => {
     });
 
   } catch (err) {
-    console.log("Login error:", err);
+    console.error("Login error:", err);
     res.status(500).json({ message: "Login error", error: err.message });
   }
 };

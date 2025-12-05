@@ -8,7 +8,7 @@ import makeWASocket, {
 import fs from "fs";
 import path from "path";
 
-// ✅ SEPARATE SESSION DIRECTORY FOR ADMIN
+
 const ADMIN_SESSION_DIR = path.join(process.cwd(), "wa_admin_session");
 
 let adminSock = null;
@@ -17,11 +17,8 @@ let reconnectTimeout = null;
 let lastQREmitTime = 0;
 let connectionCheckTimeout = null;
 const QR_EMIT_COOLDOWN = 2000;
-const CONNECTION_TIMEOUT = 30000; // 30 seconds to connect
+const CONNECTION_TIMEOUT = 30000; 
 
-/* ==========================================================
-   SILENT LOGGER
-========================================================== */
 const createLogger = () => {
   const noop = () => {};
   return {
@@ -39,17 +36,12 @@ const createLogger = () => {
 
 export const getAdminSock = () => adminSock;
 
-/* ==========================================================
-   CHECK IF SESSION EXISTS AND IS VALID
-========================================================== */
+
 const hasValidSession = () => {
   const credsPath = path.join(ADMIN_SESSION_DIR, "creds.json");
   return fs.existsSync(credsPath);
 };
 
-/* ==========================================================
-   CLEANUP FUNCTION
-========================================================== */
 const cleanupAdminSession = () => {
   if (reconnectTimeout) {
     clearTimeout(reconnectTimeout);
@@ -72,9 +64,6 @@ const cleanupAdminSession = () => {
   }
 };
 
-/* ==========================================================
-   EMIT ADMIN STATUS TO ALL CLIENTS
-========================================================== */
 const emitAdminStatus = (io, connected, phoneNumber = null) => {
   if (connected) {
     io.emit("admin_qr", null);
@@ -86,17 +75,15 @@ const emitAdminStatus = (io, connected, phoneNumber = null) => {
   }
 };
 
-/* ==========================================================
-   INITIALIZE ADMIN WHATSAPP (PRODUCTION STABLE - FIXED)
-========================================================== */
+
 export const initializeAdminWhatsApp = async (io) => {
-  // Prevent duplicate initialization
+  
   if (initializing) {
     console.log("⏳ Admin WA already initializing...");
     return initializing;
   }
 
-  // ✅ CRITICAL FIX: If already connected and valid, emit status immediately
+
   if (adminSock?.user?.id) {
     const phone = adminSock.user.id.split(":")[0];
     console.log("✅ Admin WA already connected:", phone);
@@ -108,7 +95,7 @@ export const initializeAdminWhatsApp = async (io) => {
     try {
       console.log("🚀 Starting Admin WhatsApp initialization...");
 
-      // Create session directory
+   
       if (!fs.existsSync(ADMIN_SESSION_DIR)) {
         fs.mkdirSync(ADMIN_SESSION_DIR, { recursive: true });
       }
@@ -116,7 +103,7 @@ export const initializeAdminWhatsApp = async (io) => {
       const sessionExists = hasValidSession();
       console.log(sessionExists ? "📂 Found existing session" : "🆕 No session found");
 
-      // Get Baileys version
+   
       let version = [2, 3000, 1010];
       try {
         const v = await fetchLatestBaileysVersion();
@@ -148,10 +135,10 @@ export const initializeAdminWhatsApp = async (io) => {
 
       adminSock = sock;
 
-      // ✅ CRITICAL: Set connection timeout
+  
       connectionCheckTimeout = setTimeout(() => {
         if (sock.user?.id) {
-          // Already connected, emit status
+        
           const phone = sock.user.id.split(":")[0];
           console.log("⏰ Connection timeout - but already connected:", phone);
           emitAdminStatus(io, true, phone);
@@ -161,9 +148,7 @@ export const initializeAdminWhatsApp = async (io) => {
         }
       }, CONNECTION_TIMEOUT);
 
-      /* ======================================================
-         CONNECTION HANDLING (FULLY FIXED - NO DOUBLE QR)
-      ====================================================== */
+   
       sock.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect, qr, isNewLogin } = update;
 
@@ -177,12 +162,12 @@ export const initializeAdminWhatsApp = async (io) => {
         
         console.log("🔄 Admin Connection Update:", logData);
 
-        /* --- WA CONNECTED (HIGHEST PRIORITY - PROCESS FIRST) --- */
+        
         if (connection === "open") {
           const adminNumber = sock.user?.id?.split(":")[0];
           console.log("✅ ADMIN WhatsApp CONNECTED:", adminNumber);
 
-          // Clear all timeouts
+         
           if (connectionCheckTimeout) {
             clearTimeout(connectionCheckTimeout);
             connectionCheckTimeout = null;
@@ -193,17 +178,17 @@ export const initializeAdminWhatsApp = async (io) => {
             reconnectTimeout = null;
           }
 
-          // ✅ CRITICAL: Emit connected status (this clears QR on frontend)
+        
           emitAdminStatus(io, true, adminNumber);
           
-          // Reset QR throttle
+          
           lastQREmitTime = 0;
           
-          // ✅ CRITICAL: Return early to prevent any QR emission
+        
           return;
         }
 
-        /* --- QR GENERATED (ONLY WHEN NOT CONNECTED) --- */
+
         if (qr && connection !== "open" && !sock.user) {
           const now = Date.now();
           if (now - lastQREmitTime > QR_EMIT_COOLDOWN) {
@@ -217,26 +202,26 @@ export const initializeAdminWhatsApp = async (io) => {
           return;
         }
 
-        /* --- CONNECTING STATE --- */
+   
         if (connection === "connecting") {
           console.log("🔄 Admin WA connecting...");
           
-          // ✅ FIX: If user exists during connecting, it means we're reconnecting
+
           if (sock.user?.id) {
             const phone = sock.user.id.split(":")[0];
             console.log("✅ Reconnecting with existing session:", phone);
             
-            // Emit connected status even during reconnection
+            
             setTimeout(() => {
               if (sock.user?.id) {
                 emitAdminStatus(io, true, phone);
               }
-            }, 2000); // Give 2 seconds for full connection
+            }, 2000); 
           }
           return;
         }
 
-        /* --- WA DISCONNECTED --- */
+
         if (connection === "close") {
           const statusCode =
             lastDisconnect?.error?.output?.statusCode ||
@@ -245,19 +230,19 @@ export const initializeAdminWhatsApp = async (io) => {
           console.log("❌ Admin Disconnected - Status Code:", statusCode);
           console.log("📋 Error details:", lastDisconnect?.error?.message);
 
-          // Clear timeouts
+          
           if (connectionCheckTimeout) {
             clearTimeout(connectionCheckTimeout);
             connectionCheckTimeout = null;
           }
 
-          // Emit disconnected
+          
           emitAdminStatus(io, false);
 
-          // Cleanup
+          
           cleanupAdminSession();
 
-          // Handle different disconnect reasons
+
           const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
           if (statusCode === DisconnectReason.loggedOut) {
@@ -274,7 +259,7 @@ export const initializeAdminWhatsApp = async (io) => {
             console.log("⛔ Connection issue → Keeping session for reconnect");
           }
 
-          // Auto reconnect
+         
           if (shouldReconnect && statusCode !== 515) {
             const delay = statusCode === 408 ? 5000 : 3000;
             
@@ -289,12 +274,12 @@ export const initializeAdminWhatsApp = async (io) => {
         }
       });
 
-      // Save credentials on update
+
       sock.ev.on("creds.update", saveCreds);
 
       console.log("👑 Admin WhatsApp initialized successfully");
       
-      // ✅ CRITICAL: Check if already connected after 5 seconds
+
       setTimeout(() => {
         if (sock.user?.id && !connectionCheckTimeout) {
           const phone = sock.user.id.split(":")[0];
@@ -317,18 +302,14 @@ export const initializeAdminWhatsApp = async (io) => {
   return initializing;
 };
 
-/* ==========================================================
-   GRACEFUL SHUTDOWN
-========================================================== */
+
 export const shutdownAdminWhatsApp = async () => {
   console.log("🛑 Shutting down Admin WhatsApp...");
   cleanupAdminSession();
   console.log("Admin session preserved for next startup");
 };
 
-/* ==========================================================
-   CHECK ADMIN CONNECTION STATUS
-========================================================== */
+
 export const getAdminConnectionStatus = () => {
   if (!adminSock) {
     return { connected: false, phone: null };
@@ -343,9 +324,7 @@ export const getAdminConnectionStatus = () => {
   };
 };
 
-/* ==========================================================
-   FORCE EMIT ADMIN STATUS (For new connections)
-========================================================== */
+
 export const emitCurrentAdminStatus = (io) => {
   const status = getAdminConnectionStatus();
   if (status.connected) {
@@ -355,9 +334,7 @@ export const emitCurrentAdminStatus = (io) => {
   }
 };
 
-/* ==========================================================
-   NOTIFICATIONS MODULE
-========================================================== */
+
 const cleanPhone = (number) => {
   if (!number) return null;
 

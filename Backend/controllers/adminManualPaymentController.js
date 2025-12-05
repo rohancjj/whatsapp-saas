@@ -99,7 +99,7 @@ export const approvePayment = async (req, res) => {
     payment.updatedAt = now;
     await payment.save();
 
-    // 🎯 Send Template Instead of Hardcoded Message
+  
     await Notifications.sendSystemTemplate(user._id, SYSTEM_EVENTS.PAYMENT_APPROVED, {
       plan: plan.name,
       expiry: newExpiry.toDateString(),
@@ -142,7 +142,7 @@ export const rejectPayment = async (req, res) => {
     payment.updatedAt = new Date();
     await payment.save();
 
-    // 🎯 Notify user with Template
+    
     await Notifications.sendSystemTemplate(payment.userId, SYSTEM_EVENTS.PAYMENT_REJECTED, {
       reason: adminNote || "Contact support for help.",
     });
