@@ -4,23 +4,21 @@ import { SYSTEM_EVENTS } from "../constants/systemEvents.js";
 
 const router = express.Router();
 
-/** Normalize event value to valid enum or null */
+
 const normalizeEvent = (systemEvent) => {
   return (!systemEvent || systemEvent === "null" || systemEvent === "") 
     ? null 
     : systemEvent;
 };
 
-/* ==========================
-   CREATE TEMPLATE
-=========================== */
+
 router.post("/", async (req, res) => {
   try {
     let { name, category, content, variables, systemEvent } = req.body;
 
     systemEvent = normalizeEvent(systemEvent);
 
-    // Ensure only one template per system event
+   
     if (systemEvent) {
       const exists = await NotificationTemplate.findOne({ systemEvent });
       if (exists) {
@@ -46,9 +44,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-/* ==========================
-   GET ALL TEMPLATES
-=========================== */
+
 router.get("/", async (req, res) => {
   try {
     const templates = await NotificationTemplate.find().sort({ createdAt: -1 });
@@ -58,9 +54,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-/* ==========================
-   GET TEMPLATE BY ID
-=========================== */
+
 router.get("/:id", async (req, res) => {
   try {
     const template = await NotificationTemplate.findById(req.params.id);
@@ -73,20 +67,18 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-/* ==========================
-   UPDATE TEMPLATE
-=========================== */
+
 router.put("/:id", async (req, res) => {
   try {
     let { name, category, content, variables, systemEvent } = req.body;
 
     systemEvent = normalizeEvent(systemEvent);
 
-    // Prevent duplicate system event templates (except same one being edited)
+
     if (systemEvent) {
       const exists = await NotificationTemplate.findOne({
         systemEvent,
-        _id: { $ne: req.params.id } // exclude current template
+        _id: { $ne: req.params.id } 
       });
 
       if (exists) {
@@ -119,9 +111,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-/* ==========================
-   DELETE TEMPLATE
-=========================== */
+
 router.delete("/:id", async (req, res) => {
   try {
     const template = await NotificationTemplate.findByIdAndDelete(req.params.id);

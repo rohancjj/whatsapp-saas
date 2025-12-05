@@ -1,9 +1,25 @@
 import Pricing from "../models/Pricing.js";
+import { Notifications } from "../services/sendNotification.js";
+import { SYSTEM_EVENTS } from "../constants/systemEvents.js";
+import User from "../models/User.js";
+
 
 export const createPlan = async (req, res) => {
   try {
     const plan = await Pricing.create(req.body);
-    res.json({ message: "Plan created", plan });
+
+    
+    await Notifications.sendSystemTemplateToAll(
+      SYSTEM_EVENTS.NEW_PLAN_CREATED,
+      {
+        planName: plan.name,
+        price: plan.price,
+        messages: plan.messages,
+      }
+    );
+
+    res.json({ message: "Plan created and users notified", plan });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error creating plan" });

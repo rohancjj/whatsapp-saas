@@ -15,9 +15,7 @@ const adminOnly = (req, res, next) => {
   next();
 };
 
-/* ================================
-   📊 ADMIN DASHBOARD STATS
-================================ */
+
 router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
@@ -69,9 +67,7 @@ router.get("/stats", authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
-/* ================================
-   👥 GET ALL USERS
-================================ */
+
 router.get("/users", authMiddleware, adminOnly, async (req, res) => {
   try {
     const users = await User.find().select("-password");
@@ -111,9 +107,7 @@ router.get("/users", authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
-/* ================================
-   🔌 DISCONNECT USER WHATSAPP
-================================ */
+
 router.post("/disconnect/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -133,9 +127,7 @@ router.post("/disconnect/:userId", authMiddleware, adminOnly, async (req, res) =
   }
 });
 
-/* ================================
-   ⛔ SUSPEND USER
-================================ */
+
 router.post("/suspend/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     await User.findByIdAndUpdate(req.params.userId, { suspended: true });
@@ -150,9 +142,7 @@ router.post("/suspend/:userId", authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
-/* ================================
-   ✔️ UNSUSPEND USER
-================================ */
+
 router.post("/unsuspend/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     await User.findByIdAndUpdate(req.params.userId, { suspended: false });
@@ -167,9 +157,7 @@ router.post("/unsuspend/:userId", authMiddleware, adminOnly, async (req, res) =>
   }
 });
 
-/* ================================
-   🚫 TERMINATE USER (Ban)
-================================ */
+
 router.post("/terminate/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -195,9 +183,7 @@ router.post("/terminate/:userId", authMiddleware, adminOnly, async (req, res) =>
   }
 });
 
-/* ================================
-   🔄 RESTORE USER
-================================ */
+
 router.post("/resume/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     await User.findByIdAndUpdate(req.params.userId, {
@@ -215,9 +201,7 @@ router.post("/resume/:userId", authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
-/* ================================
-   🗑️ DELETE USER PERMANENTLY
-================================ */
+
 router.delete("/user/:userId", authMiddleware, adminOnly, async (req, res) => {
   try {
     const userId = req.params.userId;

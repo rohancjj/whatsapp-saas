@@ -1,9 +1,9 @@
-
 import ManualPayment from "../models/ManualPayment.js";
 import User from "../models/User.js";
 import Pricing from "../models/Pricing.js";
 import mongoose from "mongoose";
 import { Notifications } from "../services/sendNotification.js";
+import { SYSTEM_EVENTS } from "../constants/systemEvents.js";
 
 
 export const listPayments = async (req, res) => {
@@ -12,9 +12,7 @@ export const listPayments = async (req, res) => {
 
     const filter = {};
 
-   
     if (userId) {
-    
       if (!mongoose.Types.ObjectId.isValid(userId)) {
         return res.status(400).json({ 
           message: "Invalid user ID format",
@@ -48,6 +46,7 @@ export const listPayments = async (req, res) => {
 };
 
 
+
 export const approvePayment = async (req, res) => {
   try {
     const paymentId = req.params.id;
@@ -57,28 +56,19 @@ export const approvePayment = async (req, res) => {
     }
 
     const payment = await ManualPayment.findById(paymentId);
-    if (!payment) {
-      return res.status(404).json({ message: "Payment not found" });
-    }
+    if (!payment) return res.status(404).json({ message: "Payment not found" });
 
     if (payment.status !== "pending") {
-      return res.status(400).json({ 
-        message: `Payment already ${payment.status}` 
-      });
+      return res.status(400).json({ message: `Payment already ${payment.status}` });
     }
 
     const plan = await Pricing.findById(payment.planId);
-    if (!plan) {
-      return res.status(400).json({ message: "Associated plan not found" });
-    }
+    if (!plan) return res.status(400).json({ message: "Associated plan not found" });
 
     const user = await User.findById(payment.userId);
-    if (!user) {
-      return res.status(400).json({ message: "User not found for this payment" });
-    }
+    if (!user) return res.status(400).json({ message: "User not found for this payment" });
 
     const now = new Date();
-
     const apiKey = user?.activePlan?.apiKey || `wa_${Math.random().toString(36).slice(2)}`;
 
     const baseDate =
@@ -109,11 +99,12 @@ export const approvePayment = async (req, res) => {
     payment.updatedAt = now;
     await payment.save();
 
-    // Notify user
-    await Notifications.sendToUser(
-      payment.userId,
-      `✅ Payment Approved!\nYour ${plan.name} plan is now active.\nExpires: ${newExpiry.toDateString()}`
-    );
+    // 🎯 Send Template Instead of Hardcoded Message
+    await Notifications.sendSystemTemplate(user._id, SYSTEM_EVENTS.PAYMENT_APPROVED, {
+      plan: plan.name,
+      expiry: newExpiry.toDateString(),
+      amount: plan.price,
+    });
 
     res.json({
       message: "Payment approved successfully",
@@ -128,6 +119,7 @@ export const approvePayment = async (req, res) => {
 };
 
 
+
 export const rejectPayment = async (req, res) => {
   try {
     const id = req.params.id;
@@ -139,14 +131,10 @@ export const rejectPayment = async (req, res) => {
     const { adminNote } = req.body;
 
     const payment = await ManualPayment.findById(id);
-    if (!payment) {
-      return res.status(404).json({ message: "Payment not found" });
-    }
+    if (!payment) return res.status(404).json({ message: "Payment not found" });
 
     if (payment.status !== "pending") {
-      return res.status(400).json({ 
-        message: `Payment already ${payment.status}` 
-      });
+      return res.status(400).json({ message: `Payment already ${payment.status}` });
     }
 
     payment.status = "rejected";
@@ -154,10 +142,10 @@ export const rejectPayment = async (req, res) => {
     payment.updatedAt = new Date();
     await payment.save();
 
-    await Notifications.sendToUser(
-      payment.userId,
-      `⚠️ Payment Rejected\nYour payment was not approved.\nReason: ${adminNote || "Contact support for details."}`
-    );
+    // 🎯 Notify user with Template
+    await Notifications.sendSystemTemplate(payment.userId, SYSTEM_EVENTS.PAYMENT_REJECTED, {
+      reason: adminNote || "Contact support for help.",
+    });
 
     res.json({ message: "Payment rejected", payment });
 
