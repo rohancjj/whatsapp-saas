@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 // WEBSITE
 import LandingPage from "./website/pages/LandingPage";
 import NavBar from "./website/pages/NavBar";
-
+import WhatsAppApiDocs from "./website/pages/WhatsAppApiDocs";
 // AUTH
 import AuthPage from "./website/pages/AuthPage";
 
@@ -39,6 +39,7 @@ export default function App() {
               <>
                 <NavBar />
                 <LandingPage />
+                <WhatsAppApiDocs/>
               </>
             }
           />

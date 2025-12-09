@@ -103,6 +103,10 @@ router.post("/link", authMiddleware, async (req, res) => {
    SEND MESSAGE
 ===========================*/
 
+/* ===========================
+   SEND MESSAGE (UPDATED)
+===========================*/
+
 router.post("/send", async (req, res) => {
   try {
     const apiKey = req.headers["x-api-key"] || req.headers.authorization?.split(" ")[1];
@@ -117,6 +121,7 @@ router.post("/send", async (req, res) => {
 
     await resetIfNeeded(user);
 
+    // Limit check
     if (user.activePlan.messagesUsedToday >= user.activePlan.planId.messages) {
       return res.status(429).json({
         message: "Daily limit reached",
@@ -132,36 +137,31 @@ router.post("/send", async (req, res) => {
     if (!sock)
       return res.status(500).json({ message: "WhatsApp session offline" });
 
-    const { to, type, text, image_url, file_url, button, template, list } = req.body;
+    const { to, type, text, image_url, file_url, template, list, poll } = req.body;
 
-    if (!to || !type)
-      return res.status(400).json({ message: "Missing fields: to, type" });
+    if (!to || !type) return res.status(400).json({ message: "Missing fields: to, type" });
 
     const jid = to.includes("@") ? to : `${to}@s.whatsapp.net`;
-
     let messageOptions = {};
-    const messageType = type.toLowerCase().trim();
 
-    console.log("📍 Message Type:", messageType); // Debug log
+    switch (type.toLowerCase()) {
 
-    switch (messageType) {
+      /** 📌 TEXT MESSAGE */
       case "text":
         if (!text) return res.status(400).json({ message: "Text required" });
         messageOptions = { text };
         break;
 
+      /** 📌 IMAGE MESSAGE */
       case "image":
         if (!image_url) return res.status(400).json({ message: "image_url required" });
-        messageOptions = {
-          image: { url: image_url },
-          caption: text || ""
-        };
+        messageOptions = { image: { url: image_url }, caption: text || "" };
         break;
 
+      /** 📌 FILE MESSAGE */
       case "file":
       case "document":
         if (!file_url) return res.status(400).json({ message: "file_url required" });
-
         messageOptions = {
           document: { url: file_url },
           mimetype: mime.lookup(file_url) || "application/octet-stream",
@@ -170,75 +170,62 @@ router.post("/send", async (req, res) => {
         };
         break;
 
-      case "button":
-      case "buttons":
-        // ⚠️ Buttons are deprecated by WhatsApp (May 2023)
-        // Using POLL as alternative (works 100%)
-        if (!button || !button.body || !button.buttons)
-          return res.status(400).json({ message: "Invalid button payload" });
-
-        const pollOptions = button.buttons.map(b => b.buttonText.displayText);
-
-        messageOptions = {
-          poll: {
-            name: button.body + (button.footer ? `\n\n${button.footer}` : ""),
-            values: pollOptions,
-            selectableCount: 1
-          }
-        };
-        break;
-
+      /** 📌 POLL (NEW METADATA FORMAT) */
       case "poll":
-        if (!req.body.poll || !req.body.poll.options)
-          return res.status(400).json({ message: "Invalid poll payload" });
+        if (!poll?.options || !poll?.question)
+          return res.status(400).json({ message: "Poll requires question and options" });
 
         messageOptions = {
           poll: {
-            name: req.body.poll.question,
-            values: req.body.poll.options,
-            selectableCount: req.body.poll.selectableCount || 1
+            name: poll.question,
+            values: poll.options,
+            selectableCount: poll.selectableCount || 1
           }
         };
         break;
 
+      /** 📌 LIST MESSAGE (Fully updated for Baileys 7.x.x) */
       case "list":
-        if (!list || !list.sections)
-          return res.status(400).json({ message: "Invalid list payload" });
+  if (!list?.message) {
+    return res.status(400).json({ message: "Invalid list payload" });
+  }
 
-        // ✅ Correct list message format
-        messageOptions = {
-          text: list.body,
-          footer: list.footer || "",
-          title: list.title || "",
-          buttonText: list.buttonText || "View Options",
-          sections: list.sections.map(section => ({
-            title: section.title,
-            rows: section.rows.map(row => ({
-              title: row.title,
-              rowId: row.rowId,
-              description: row.description || ""
-            }))
-          }))
-        };
-        break;
+  messageOptions = list.message; // pass full interactive payload
+  break;
 
+
+      /** 📌 TEMPLATE BUTTON MESSAGE (Baileys v7 Interactive Format) */
       case "template":
-        if (!template)
-          return res.status(400).json({ message: "template payload required" });
+        if (!template?.buttons || !template?.text)
+          return res.status(400).json({ message: "Template requires text + buttons array" });
 
-        messageOptions = template;
+        messageOptions = {
+          interactive: {
+            type: "button",
+            body: { text: template.text },
+            footer: { text: template.footer || "" },
+            action: {
+              buttons: template.buttons.map((btn, index) => ({
+                type: "reply",
+                reply: {
+                  id: btn.id || `btn_${index}`,
+                  title: btn.title
+                }
+              }))
+            }
+          }
+        };
         break;
 
       default:
-        console.error("❌ Unrecognized type:", type);
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: "Invalid message type",
           receivedType: type,
-          allowedTypes: ["text", "image", "file", "document", "button", "buttons", "list", "template"]
+          allowedTypes: ["text","image","file","document","poll","list","template"]
         });
     }
 
-    console.log("📤 Sending message with options:", JSON.stringify(messageOptions, null, 2));
+    console.log("📤 Sending →", messageOptions);
 
     const result = await sock.sendMessage(jid, messageOptions);
 
@@ -246,23 +233,18 @@ router.post("/send", async (req, res) => {
     user.activePlan.messagesUsedToday += 1;
     await user.save();
 
-    return res.json({
+    res.json({
       success: true,
       message: "Message sent successfully ✨",
-      messageId: result.key.id,
-      usedToday: user.activePlan.messagesUsedToday,
-      limit: user.activePlan.planId.messages,
-      remainingToday: user.activePlan.planId.messages - user.activePlan.messagesUsedToday
+      messageId: result.key.id
     });
 
   } catch (err) {
     console.error("❌ Send Error:", err);
-    return res.status(500).json({
-      message: "Internal server error",
-      error: err.message
-    });
+    res.status(500).json({ message: "Internal server error", error: err.message });
   }
 });
+
 
 
 /* ===========================
