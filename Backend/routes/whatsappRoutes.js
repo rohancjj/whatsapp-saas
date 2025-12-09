@@ -6,11 +6,6 @@ import WhatsAppSession from "../models/WhatsAppSession.js";
 import { resetIfNeeded } from "../utils/resetMessageLimit.js";
 import axios from "axios";
 import mime from "mime-types";
-import https from "https";
-
-
-
-
 
 import {
   createInstanceForUser,
@@ -20,9 +15,7 @@ import {
 
 const router = express.Router();
 
-
 const generateApiKey = () => `wa_${crypto.randomBytes(32).toString("hex")}`;
-
 
 const syncApiKeys = async (userId) => {
   try {
@@ -43,7 +36,9 @@ const syncApiKeys = async (userId) => {
   }
 };
 
-
+/* ===========================
+   LINK WHATSAPP
+===========================*/
 router.post("/link", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -55,10 +50,9 @@ router.post("/link", authMiddleware, async (req, res) => {
       return res.status(400).json({ message: "Please activate a plan first" });
     }
 
-    
     if (user.role === "admin") {
-      return res.status(403).json({ 
-        message: "Admin accounts cannot link user WhatsApp. Use Admin Dashboard instead." 
+      return res.status(403).json({
+        message: "Admin accounts cannot link user WhatsApp. Use Admin Dashboard instead."
       });
     }
 
@@ -90,7 +84,6 @@ router.post("/link", authMiddleware, async (req, res) => {
       );
     }
 
-    
     await createInstanceForUser(io, {
       ...user.toObject(),
       activePlan: { ...user.activePlan, apiKey },
@@ -106,115 +99,15 @@ router.post("/link", authMiddleware, async (req, res) => {
   }
 });
 
-
-router.get("/status", authMiddleware, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    await syncApiKeys(userId);
-
-    const session = await WhatsAppSession.findOne({ userId });
-
-    if (!session)
-      return res.json({ connected: false, message: "No WhatsApp session" });
-
-    res.json({
-      connected: session.connected,
-      number: session.phoneNumber,
-      apiKey: session.apiKey,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-
-router.get("/api-key", authMiddleware, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const user = await User.findById(userId);
-
-    
-    if (user?.role === "admin") {
-      return res.status(403).json({ 
-        message: "Admin accounts use separate WhatsApp system" 
-      });
-    }
-
-    const syncedKey = await syncApiKeys(userId);
-    let session = await WhatsAppSession.findOne({ userId });
-
-    let apiKey = session?.apiKey || syncedKey;
-
-    if (!apiKey) {
-      apiKey = generateApiKey();
-
-      await User.findByIdAndUpdate(userId, {
-        "activePlan.apiKey": apiKey,
-      });
-
-      await WhatsAppSession.findOneAndUpdate(
-        { userId },
-        { apiKey, updatedAt: new Date() },
-        { upsert: true }
-      );
-
-      session = await WhatsAppSession.findOne({ userId });
-    }
-
-    res.json({
-      apiKey,
-      connected: session?.connected || false,
-      phoneNumber: session?.phoneNumber || null,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-
-router.post("/regenerate-key", authMiddleware, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const user = await User.findById(userId);
-
-   
-    if (user?.role === "admin") {
-      return res.status(403).json({ 
-        message: "Admin accounts use separate system" 
-      });
-    }
-
-    const newKey = generateApiKey();
-
-    await User.findByIdAndUpdate(userId, {
-      "activePlan.apiKey": newKey,
-    });
-
-    await WhatsAppSession.findOneAndUpdate(
-      { userId },
-      { apiKey: newKey, updatedAt: new Date() },
-      { upsert: true }
-    );
-
-    res.json({ message: "API key regenerated", apiKey: newKey });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-
-
-
-
+/* ===========================
+   SEND MESSAGE
+===========================*/
 
 router.post("/send", async (req, res) => {
   try {
-    const apiKey =
-      req.headers["x-api-key"] ||
-      req.headers.authorization?.split(" ")[1];
+    const apiKey = req.headers["x-api-key"] || req.headers.authorization?.split(" ")[1];
 
-    if (!apiKey)
-      return res.status(401).json({ message: "API key missing" });
+    if (!apiKey) return res.status(401).json({ message: "API key missing" });
 
     const session = await WhatsAppSession.findOne({ apiKey });
     if (!session) return res.status(404).json({ message: "Invalid API key" });
@@ -239,7 +132,7 @@ router.post("/send", async (req, res) => {
     if (!sock)
       return res.status(500).json({ message: "WhatsApp session offline" });
 
-    const { to, type, text, image_url, file_url, button, template } = req.body;
+    const { to, type, text, image_url, file_url, button, template, list } = req.body;
 
     if (!to || !type)
       return res.status(400).json({ message: "Missing fields: to, type" });
@@ -247,17 +140,16 @@ router.post("/send", async (req, res) => {
     const jid = to.includes("@") ? to : `${to}@s.whatsapp.net`;
 
     let messageOptions = {};
+    const messageType = type.toLowerCase().trim();
 
-   
-    switch (type.toLowerCase()) {
+    console.log("📍 Message Type:", messageType); // Debug log
 
-     
+    switch (messageType) {
       case "text":
         if (!text) return res.status(400).json({ message: "Text required" });
         messageOptions = { text };
         break;
 
-   
       case "image":
         if (!image_url) return res.status(400).json({ message: "image_url required" });
         messageOptions = {
@@ -266,7 +158,6 @@ router.post("/send", async (req, res) => {
         };
         break;
 
- 
       case "file":
       case "document":
         if (!file_url) return res.status(400).json({ message: "file_url required" });
@@ -279,20 +170,58 @@ router.post("/send", async (req, res) => {
         };
         break;
 
-
       case "button":
+      case "buttons":
+        // ⚠️ Buttons are deprecated by WhatsApp (May 2023)
+        // Using POLL as alternative (works 100%)
         if (!button || !button.body || !button.buttons)
           return res.status(400).json({ message: "Invalid button payload" });
 
+        const pollOptions = button.buttons.map(b => b.buttonText.displayText);
+
         messageOptions = {
-          text: button.body,
-          footer: button.footer || "",
-          buttons: button.buttons,
-          headerType: 1
+          poll: {
+            name: button.body + (button.footer ? `\n\n${button.footer}` : ""),
+            values: pollOptions,
+            selectableCount: 1
+          }
         };
         break;
 
-      
+      case "poll":
+        if (!req.body.poll || !req.body.poll.options)
+          return res.status(400).json({ message: "Invalid poll payload" });
+
+        messageOptions = {
+          poll: {
+            name: req.body.poll.question,
+            values: req.body.poll.options,
+            selectableCount: req.body.poll.selectableCount || 1
+          }
+        };
+        break;
+
+      case "list":
+        if (!list || !list.sections)
+          return res.status(400).json({ message: "Invalid list payload" });
+
+        // ✅ Correct list message format
+        messageOptions = {
+          text: list.body,
+          footer: list.footer || "",
+          title: list.title || "",
+          buttonText: list.buttonText || "View Options",
+          sections: list.sections.map(section => ({
+            title: section.title,
+            rows: section.rows.map(row => ({
+              title: row.title,
+              rowId: row.rowId,
+              description: row.description || ""
+            }))
+          }))
+        };
+        break;
+
       case "template":
         if (!template)
           return res.status(400).json({ message: "template payload required" });
@@ -301,12 +230,17 @@ router.post("/send", async (req, res) => {
         break;
 
       default:
-        return res.status(400).json({ message: "Invalid message type" });
+        console.error("❌ Unrecognized type:", type);
+        return res.status(400).json({ 
+          message: "Invalid message type",
+          receivedType: type,
+          allowedTypes: ["text", "image", "file", "document", "button", "buttons", "list", "template"]
+        });
     }
 
+    console.log("📤 Sending message with options:", JSON.stringify(messageOptions, null, 2));
 
     const result = await sock.sendMessage(jid, messageOptions);
-
 
     user.activePlan.messagesUsed += 1;
     user.activePlan.messagesUsedToday += 1;
@@ -331,56 +265,42 @@ router.post("/send", async (req, res) => {
 });
 
 
+/* ===========================
+   📌 WEBHOOK HANDLER
+===========================*/
 
-
-
-router.post("/disconnect", authMiddleware, async (req, res) => {
+router.post("/webhook", async (req, res) => {
   try {
-    const userId = req.user.id;
-    const sock = getUserSock(userId);
+    const data = req.body;
 
-    if (sock) {
-      try {
-        await sock.logout();
-      } catch (err) {
-        console.error("Logout error:", err);
-      }
+    console.log("\n📩 Incoming Webhook:", JSON.stringify(data, null, 2));
+
+    const { from, type, text, buttonId } = data;
+
+    const sock = getUserSock(String(data.userId));
+
+    if (!sock) {
+      console.log("☠️ No active WhatsApp session to reply");
+      return res.sendStatus(200);
     }
 
-    await WhatsAppSession.updateOne(
-      { userId },
-      { connected: false, updatedAt: new Date() }
-    );
+    // Auto Reply for Button Click
+    if (type === "button_reply") {
+      await sock.sendMessage(from, { text: `You selected: *${buttonId}*` });
+    }
 
-    res.json({ message: "WhatsApp disconnected" });
+    // Auto Reply for Text Messages
+    if (type === "text") {
+      await sock.sendMessage(from, { text: `You said: "${text}" 👀` });
+    }
+
+    res.sendStatus(200);
+
   } catch (err) {
+    console.error("Webhook Error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-
-router.post("/check-number", async (req, res) => {
-  try {
-    const { number } = req.body;
-
-    if (!number)
-      return res.status(400).json({ message: "Number required" });
-
-    const exists = await checkWhatsAppNumber(number);
-
-    return res.json({
-      exists,
-      verified: exists === true,
-      message:
-        exists === true
-          ? "WhatsApp number exists"
-          : exists === false
-          ? "Number is not on WhatsApp"
-          : "Cannot verify right now",
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 export default router;
