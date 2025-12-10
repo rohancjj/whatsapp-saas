@@ -53,10 +53,6 @@ const UserDashboard = () => {
 
   const [tabValue, setTabValue] = useState(0);
 
-  // Removed state: messageToSend, recipientNumber, chatMessages
-
-  // Removed functions: scrollToBottom (no longer needed), sendMessage (no longer needed)
-
   const getUserId = () => {
     const token = localStorage.getItem("token");
     if (!token) return null;
@@ -129,7 +125,27 @@ const UserDashboard = () => {
     }
   };
 
-  // Removed function: sendMessage
+  // 🔴 Disconnect function added
+  const handleDisconnect = async () => {
+    if (!window.confirm("Are you sure you want to disconnect WhatsApp?")) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(
+        "http://localhost:8080/api/v1/whatsapp/disconnect",
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setWhatsAppConnected(false);
+      setWhatsAppQR(null);
+      setPhoneNumber(null);
+
+      showSnackbar("WhatsApp disconnected successfully", "warning");
+    } catch {
+      showSnackbar("Failed to disconnect", "error");
+    }
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -169,8 +185,6 @@ const UserDashboard = () => {
       showSnackbar("WhatsApp connected!", "success");
     });
 
-    // Removed socket.on("incoming_message")
-
     return () => socket.disconnect();
   }, [userId]);
 
@@ -190,7 +204,6 @@ const UserDashboard = () => {
           TabIndicatorProps={{ style: { background: "black", height: 3 } }}
         >
           <Tab label="Overview" />
-          {/* Removed: <Tab label="Messaging" /> */}
           <Tab label="API Key" />
           <Tab label="Connect WhatsApp" />
         </Tabs>
@@ -202,49 +215,47 @@ const UserDashboard = () => {
           {/* Subscription */}
           <Grid item xs={12} md={4}>
             <Card sx={{ p: 2, borderRadius: 3, boxShadow: "0px 4px 15px rgba(0,0,0,0.04)" }}>
-              <Typography variant="subtitle1" fontWeight={600}>
-                Subscription
-              </Typography>
-
-              {loadingPlan ? (
-                <CircularProgress size={22} sx={{ mt: 2 }} />
-              ) : activePlan ? (
+              <Typography variant="subtitle1" fontWeight={600}>Subscription</Typography>
+              {loadingPlan ? <CircularProgress size={22} sx={{ mt: 2 }} /> : activePlan ? (
                 <Box sx={{ mt: 2 }}>
                   <Typography fontWeight={600}>{activePlan.name}</Typography>
                   <Typography>{activePlan.messagesUsed}/{activePlan.totalMessages} Messages</Typography>
                   <Typography>Expires {new Date(activePlan.expiryAt).toLocaleDateString()}</Typography>
                 </Box>
-              ) : (
-                <Typography>No active plan</Typography>
-              )}
+              ) : <Typography>No active plan</Typography>}
             </Card>
           </Grid>
 
           {/* WhatsApp Status */}
           <Grid item xs={12} md={4}>
             <Card sx={{ p: 2, borderRadius: 3, boxShadow: "0px 4px 15px rgba(0,0,0,0.04)" }}>
-              <Typography variant="subtitle1" fontWeight={600}>
-                WhatsApp Status
-              </Typography>
+              <Typography variant="subtitle1" fontWeight={600}>WhatsApp Status</Typography>
               <Typography sx={{ mt: 2 }}>
                 {whatsAppConnected ? `Connected ✓ (${phoneNumber})` : "Not Connected"}
               </Typography>
+
+              {whatsAppConnected && (
+                <Button 
+                  variant="contained" 
+                  color="error" 
+                  sx={{ mt: 2 }} 
+                  onClick={handleDisconnect}
+                >
+                  Disconnect
+                </Button>
+              )}
             </Card>
           </Grid>
 
           {/* API Key */}
           <Grid item xs={12} md={4}>
             <Card sx={{ p: 2, borderRadius: 3, boxShadow: "0px 4px 15px rgba(0,0,0,0.04)" }}>
-              <Typography variant="subtitle1" fontWeight={600}>
-                API Key
-              </Typography>
+              <Typography variant="subtitle1" fontWeight={600}>API Key</Typography>
               <Typography sx={{ mt: 2 }}>{apiKey ? apiKey.slice(0, 20) + "..." : "Not Generated"}</Typography>
             </Card>
           </Grid>
         </Grid>
       </TabPanel>
-
-      {/* Removed: MESSAGING TAB PANEL (index=1 is now API Key) */}
 
       {/* ---------- API KEY ---------- */}
       <TabPanel value={tabValue} index={1}>
@@ -267,7 +278,6 @@ const UserDashboard = () => {
       </TabPanel>
 
       {/* ---------- CONNECT WHATSAPP ---------- */}
-      {/* Index adjusted from 3 to 2 */}
       <TabPanel value={tabValue} index={2}>
         <Card sx={{ p: 3, borderRadius: 4, textAlign: "center" }}>
           <Typography variant="h6">

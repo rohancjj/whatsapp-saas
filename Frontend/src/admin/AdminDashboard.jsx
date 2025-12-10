@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from "react";
-import { motion } from "framer-motion";
+import React, { useEffect, useState, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion"; // Added AnimatePresence
 import axios from "axios";
 import { io } from "socket.io-client";
 import QRCode from "qrcode";
@@ -17,8 +17,9 @@ import {
   RefreshCw,
   AlertCircle,
   LogOut,
-  Scan, // New icon for QR scanner feel
-  Loader2, // New icon for smoother loading states
+  Scan,
+  Loader2,
+  AlertTriangle, // Added for modal warning
 } from "lucide-react";
 
 // StatCard Component - Premium Styling
@@ -51,8 +52,8 @@ const StatusCard = ({ label, value, icon, color }) => (
     className="p-5 bg-white rounded-xl shadow-lg border border-slate-100 flex items-center gap-4 hover:shadow-xl transition-shadow"
   >
     <div className={`p-3 rounded-full shadow-inner ${
-      color.includes('green') ? 'bg-green-50' : 
-      color.includes('blue') ? 'bg-blue-50' : 
+      color.includes('green') ? 'bg-green-50' :
+      color.includes('blue') ? 'bg-blue-50' :
       color.includes('orange') ? 'bg-orange-50' : 'bg-slate-50'
     }`}>
       <div className={`${color} text-lg`}>{icon}</div>
@@ -78,9 +79,77 @@ export default function AdminDashboard() {
   // NEW STATE for disconnect loading/status
   const [disconnecting, setDisconnecting] = useState(false);
   const [disconnectError, setDisconnectError] = useState(null);
+  // NEW STATE for modal
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
 
   const socketRef = useRef(null);
   const token = localStorage.getItem("token");
+
+  // /* ====== Refresh Connection ====== */
+  const handleRefreshConnection = useCallback(() => {
+    console.log("🔄 Refreshing Admin WhatsApp connection...");
+    setQrLoading(true);
+    setDisconnectError(null);
+
+    // Reconnect socket to trigger new QR
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current.connect();
+    }
+
+    // Timeout in case QR doesn't come
+    setTimeout(() => {
+      if (qrLoading) {
+        setQrLoading(false);
+        console.log("⚠️ QR refresh timeout");
+      }
+    }, 15000);
+  }, [qrLoading]);
+
+  /* ============================================================== */
+  /* 🚀 Disconnect Connection (Updated Function) */
+  /* ============================================================== */
+  const handleDisconnect = async () => {
+    setShowDisconnectModal(false); // Close the modal
+
+    setDisconnecting(true);
+    setDisconnectError(null);
+    setAdminQR(null); // Optimistic UI update
+
+    try {
+      // Call the backend endpoint
+      await axios.post("http://localhost:8080/api/v1/whatsapp/disconnect", {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // If the request succeeds, the socket listener ('admin_disconnected')
+      // will handle the final state update (setDisconnecting(false)).
+      console.log("✅ Admin WhatsApp disconnection requested.");
+
+    } catch (err) {
+      console.error("Disconnect API call failed:", err);
+      const responseMessage = err.response?.data?.message;
+
+      // 🛑 CORE FIX: Handle "No active session" (400 Bad Request) as success.
+      if (err.response?.status === 400 && responseMessage === "No active session") {
+        console.log("⚠️ Session was already inactive on the server. Treating as success.");
+
+        // Manually update the state to force UI to QR/Waiting state
+        setAdminConnected(false);
+        setAdminNumber(null);
+        setDisconnecting(false);
+        // Attempt to refresh the connection to immediately trigger QR generation
+        handleRefreshConnection();
+        return;
+      }
+
+      // Handle other failures (e.g., 500 server error, network issues)
+      setDisconnectError(responseMessage || "Failed to disconnect session due to server error.");
+      setDisconnecting(false);
+      // Attempt to refresh/reconnect to get a clean state
+      handleRefreshConnection();
+    }
+  };
 
   // ==============================================================================
   // CORE LOGIC - DO NOT CHANGE
@@ -186,78 +255,60 @@ export default function AdminDashboard() {
         socketRef.current = null;
       }
     };
-  }, [token]);
-
-  /* ====== Refresh Connection ====== */
-  const handleRefreshConnection = () => {
-    console.log("🔄 Refreshing Admin WhatsApp connection...");
-    setQrLoading(true);
-    setDisconnectError(null);
-
-    // Reconnect socket to trigger new QR
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-      socketRef.current.connect();
-    }
-
-    // Timeout in case QR doesn't come
-    setTimeout(() => {
-      if (qrLoading) {
-        setQrLoading(false);
-        console.log("⚠️ QR refresh timeout");
-      }
-    }, 15000);
-  };
-
-  /* ============================================================== */
-  /* 🚀 Disconnect Connection (Updated Function) */
-  /* ============================================================== */
-  const handleDisconnect = async () => {
-    if (!window.confirm("Are you sure you want to disconnect the Admin WhatsApp session? This will force a new QR code to be generated.")) {
-      return;
-    }
-
-    setDisconnecting(true);
-    setDisconnectError(null);
-    setAdminQR(null); // Optimistic UI update
-
-    try {
-      // Call the backend endpoint
-      await axios.post("http://localhost:8080/api/v1/whatsapp/disconnect", {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      // If the request succeeds, the socket listener ('admin_disconnected') 
-      // will handle the final state update (setDisconnecting(false)).
-      console.log("✅ Admin WhatsApp disconnection requested.");
-
-    } catch (err) {
-      console.error("Disconnect API call failed:", err);
-      const responseMessage = err.response?.data?.message;
-
-      // 🛑 CORE FIX: Handle "No active session" (400 Bad Request) as success.
-      if (err.response?.status === 400 && responseMessage === "No active session") {
-        console.log("⚠️ Session was already inactive on the server. Treating as success.");
-
-        // Manually update the state to force UI to QR/Waiting state
-        setAdminConnected(false);
-        setAdminNumber(null);
-        setDisconnecting(false);
-        // Attempt to refresh the connection to immediately trigger QR generation
-        handleRefreshConnection();
-        return;
-      }
-
-      // Handle other failures (e.g., 500 server error, network issues)
-      setDisconnectError(responseMessage || "Failed to disconnect session due to server error.");
-      setDisconnecting(false);
-      // Attempt to refresh/reconnect to get a clean state
-      handleRefreshConnection();
-    }
-  };
+  }, [token, handleRefreshConnection]);
   // ==============================================================================
   // END CORE LOGIC
   // ==============================================================================
+
+  /* ====== Disconnect Confirmation Modal Component (Inline) ====== */
+  const DisconnectConfirmationModal = () => (
+    <AnimatePresence>
+      {showDisconnectModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setShowDisconnectModal(false)}
+        >
+          <motion.div
+            initial={{ y: -50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 50, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()} // Prevent closing on modal content click
+            className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-8"
+          >
+            <div className="flex items-center gap-4 border-b pb-4 mb-6">
+              <AlertTriangle size={30} className="text-red-500" />
+              <h3 className="text-2xl font-bold text-slate-800">Confirm Disconnection</h3>
+            </div>
+            <p className="text-slate-600 text-lg mb-6">
+              Are you sure you want to **disconnect the Admin WhatsApp session**?
+            </p>
+            <p className="text-sm text-red-500 font-medium p-3 bg-red-50 rounded-lg mb-8">
+              ⚠️ This action will immediately terminate the active session and **force the generation of a brand new QR code** for reconnection.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDisconnectModal(false)}
+                className="px-6 py-2 border border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-slate-100 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDisconnect}
+                disabled={disconnecting}
+                className="px-6 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition flex items-center gap-2 disabled:opacity-50"
+              >
+                <LogOut size={20} className={disconnecting ? "animate-spin" : ""} />
+                {disconnecting ? "Disconnecting..." : "Disconnect Anyway"}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 
   /* ====== Loading State ====== */
   if (loading) {
@@ -289,7 +340,10 @@ export default function AdminDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-10 bg-slate-50/50 min-h-screen">
-      
+
+      {/* RENDER MODAL HERE */}
+      <DisconnectConfirmationModal />
+
       {/* HEADER */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -361,7 +415,7 @@ export default function AdminDashboard() {
             {/* DISCONNECT BUTTON (Only visible when connected) */}
             {adminConnected && (
               <button
-                onClick={handleDisconnect}
+                onClick={() => setShowDisconnectModal(true)} // Opens the new modal
                 disabled={disconnecting}
                 className="px-5 py-2.5 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
               >
@@ -545,7 +599,6 @@ export default function AdminDashboard() {
             icon={<Zap size={24} />}
           />
 
-          
 
           <StatusCard
             label="API Response Time"
