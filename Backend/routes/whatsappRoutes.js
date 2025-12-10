@@ -1,5 +1,7 @@
 import express from "express";
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import User from "../models/User.js";
 import WhatsAppSession from "../models/WhatsAppSession.js";
@@ -11,6 +13,26 @@ import { getAdminSock, initializeAdminWhatsApp } from "../services/adminWhatsapp
 const router = express.Router();
 const generateApiKey = () => `wa_${crypto.randomBytes(32).toString("hex")}`;
 
+// Helper function to clear ALL session files
+const clearAllSessions = () => {
+  const sessionsDir = path.join(process.cwd(), "wa_sessions");
+  try {
+    if (fs.existsSync(sessionsDir)) {
+      // Clear all subdirectories
+      const files = fs.readdirSync(sessionsDir);
+      files.forEach(file => {
+        const filePath = path.join(sessionsDir, file);
+        if (fs.statSync(filePath).isDirectory()) {
+          fs.rmSync(filePath, { recursive: true, force: true });
+          console.log(`🗑️ Cleared session: ${file}`);
+        }
+      });
+      console.log("✅ All sessions cleared");
+    }
+  } catch (err) {
+    console.error("❌ Failed to clear sessions:", err);
+  }
+};
 
 /* ===========================
    LINK WHATSAPP
@@ -45,7 +67,6 @@ router.post("/link", authMiddleware, async (req, res) => {
   }
 });
 
-
 /* ===========================
    SEND MESSAGE
 ===========================*/
@@ -75,7 +96,6 @@ router.post("/send", async (req, res) => {
     let messageOptions = {};
 
     switch (type.toLowerCase()) {
-
       case "text":
         messageOptions = { text };
         break;
@@ -123,8 +143,6 @@ router.post("/send", async (req, res) => {
         };
         break;
 
-
-      /* 🟢 FIXED — NATIVE FLOW WITH IMAGE SUPPORT */
       case "quick_buttons":
       case "native":
       case "flow":
@@ -155,7 +173,6 @@ router.post("/send", async (req, res) => {
         };
         break;
 
-      /* 🟣 CTA COPY BUTTON FIXED */
       case "cta_copy":
         messageOptions = {
           viewOnceMessage: {
@@ -201,7 +218,6 @@ router.post("/send", async (req, res) => {
   }
 });
 
-
 /* ===========================
    WEBHOOK HANDLER
 ===========================*/
@@ -223,10 +239,10 @@ router.post("/webhook", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-/* ===========================
-   DISCONNECT ADMIN WHATSAPP
-===========================*/
 
+/* ===========================
+   DISCONNECT ADMIN WHATSAPP - FIXED
+===========================*/
 router.post("/disconnect", authMiddleware, async (req, res) => {
   try {
     const io = req.app.get("io");
@@ -234,47 +250,47 @@ router.post("/disconnect", authMiddleware, async (req, res) => {
 
     console.log("🚫 Disconnect request received");
 
-    // If no active admin session (already logged out)
-    if (!sock || !sock.user) {
-      console.log("⚠️ No active Admin WA session. Resetting DB...");
-
-      await WhatsAppSession.deleteMany({});
-      io.emit("admin_disconnected");
-
-      // Restart admin session (generate new QR)
-      setTimeout(() => initializeAdminWhatsApp(io), 1500);
-
-      return res.json({ success: true, message: "No active session. Restarting..." });
+    // Step 1: Logout if session exists
+    if (sock && sock.user) {
+      try { 
+        await sock.logout(); 
+        console.log("✅ Logged out successfully");
+      } catch (err) {
+        console.log("⚠️ Logout error (might already be logged out):", err.message);
+      }
     }
 
-    // Graceful logout
-    try { await sock.logout(); } catch {}
-    try { sock.ws?.close(); } catch {}
+    // Step 2: Close WebSocket connection
+    if (sock) {
+      try { sock.ws?.close(); } catch {}
+      try { sock.end?.(); } catch {}
+    }
 
-    console.log("🧹 Admin WA session terminated. Cleaning DB...");
+    // Step 3: Clear ALL session files (THIS IS THE KEY FIX)
+    clearAllSessions();
+
+    // Step 4: Clean database
+    console.log("🧹 Cleaning database...");
     await WhatsAppSession.deleteMany({});
 
+    // Step 5: Emit disconnected event
     io.emit("admin_disconnected");
 
-    // Restart service after short delay
+    // Step 6: Restart admin WhatsApp with fresh session
     setTimeout(() => {
-      console.log("♻️ Restarting Admin WA to generate fresh QR...");
+      console.log("♻️ Restarting Admin WA with fresh session...");
       initializeAdminWhatsApp(io);
-    }, 1500);
+    }, 2000);
 
-    res.json({ success: true, message: "Admin WhatsApp disconnected. Restarting..." });
+    res.json({ 
+      success: true, 
+      message: "Admin WhatsApp disconnected. Fresh QR will be generated." 
+    });
 
   } catch (err) {
-    console.error("Disconnect error:", err);
+    console.error("❌ Disconnect error:", err);
     res.status(500).json({ error: err.message });
   }
 });
-
-
-
-
-
-
-
 
 export default router;
