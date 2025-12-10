@@ -1,542 +1,597 @@
-import React, { useState } from 'react';
-import { Copy, Check, Send, MessageSquare, Image, File, List, Zap, Code, Eye, EyeOff } from 'lucide-react';
+import React, { useState } from "react";
+import {
+  Copy,
+  Check,
+  ChevronRight,
+  Code,
+  Globe,
+  Phone,
+  Send,
+  Shield,
+  Link as LinkIcon,
+  FileCode2,
+} from "lucide-react";
 
-export default function WhatsAppApiDocs() {
-  const [copiedSection, setCopiedSection] = useState(null);
-  const [activeTab, setActiveTab] = useState('getting-started');
-  const [showApiKey, setShowApiKey] = useState(false);
+const codeBlocks = {
+  nodeSendText: `import axios from "axios";
 
-  const demoApiKey = "wa_1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+const API_BASE_URL = "https://your-domain.com/api";
+const API_KEY = "YOUR_API_KEY";
 
-  const copyToClipboard = (text, section) => {
-    navigator.clipboard.writeText(text);
-    setCopiedSection(section);
-    setTimeout(() => setCopiedSection(null), 2000);
+async function sendWhatsAppMessage() {
+  try {
+    const response = await axios.post(
+      \`\${API_BASE_URL}/whatsapp/send-text\`,
+      {
+        to: "918107171472",
+        message: "Hello from the WhatsApp API 🚀",
+      },
+      {
+        headers: {
+          "x-api-key": API_KEY,
+        },
+      }
+    );
+
+    console.log("Message sent:", response.data);
+  } catch (error) {
+    console.error("Error sending message:", error.response?.data || error.message);
+  }
+}
+
+sendWhatsAppMessage();`,
+
+  nodeSendMedia: `import axios from "axios";
+import fs from "fs";
+
+const API_BASE_URL = "https://your-domain.com/api";
+const API_KEY = "YOUR_API_KEY";
+
+async function sendWhatsAppMedia() {
+  try {
+    const response = await axios.post(
+      \`\${API_BASE_URL}/whatsapp/send-media\`,
+      {
+        to: "918107171472",
+        caption: "Here is your PDF 📎",
+        mediaUrl: "https://your-cdn.com/invoice.pdf",
+        mediaType: "document"
+      },
+      {
+        headers: {
+          "x-api-key": API_KEY,
+        },
+      }
+    );
+
+    console.log("Media sent:", response.data);
+  } catch (error) {
+    console.error("Error sending media:", error.response?.data || error.message);
+  }
+}
+
+sendWhatsAppMedia();`,
+
+  restExample: `POST /api/whatsapp/send-text HTTP/1.1
+Host: your-domain.com
+x-api-key: YOUR_API_KEY
+Content-Type: application/json
+
+{
+  "to": "918107171472",
+  "message": "Hello from the WhatsApp API 🚀"
+}`,
+};
+
+function CodeBlock({ label, language = "javascript", code }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1300);
+    } catch (err) {
+      console.error("Copy failed", err);
+    }
   };
 
-  const CodeBlock = ({ code, language = "bash", id }) => (
-    <div className="relative group">
-      <pre className="bg-slate-900 text-slate-100 p-4 rounded-lg overflow-x-auto text-sm border border-slate-700">
-        <code className={`language-${language}`}>{code}</code>
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-slate-900/30 shadow-[0_18px_60px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-400">
+          <FileCode2 className="w-4 h-4" />
+          <span>{label}</span>
+          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+            {language}
+          </span>
+        </div>
+        <button
+          onClick={handleCopy}
+          className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-100 hover:bg-white/10 transition"
+        >
+          {copied ? (
+            <>
+              <Check className="w-3 h-3" /> Copied
+            </>
+          ) : (
+            <>
+              <Copy className="w-3 h-3" /> Copy
+            </>
+          )}
+        </button>
+      </div>
+      <pre className="relative max-h-[360px] overflow-auto px-4 py-4 text-xs leading-relaxed text-slate-100">
+        <code>{code}</code>
       </pre>
-      <button
-        onClick={() => copyToClipboard(code, id)}
-        className="absolute top-2 right-2 p-2 bg-slate-800 hover:bg-slate-700 rounded-md transition-all opacity-0 group-hover:opacity-100"
-      >
-        {copiedSection === id ? (
-          <Check className="w-4 h-4 text-green-400" />
-        ) : (
-          <Copy className="w-4 h-4 text-slate-300" />
-        )}
-      </button>
     </div>
   );
+}
 
-  const tabs = [
-    { id: 'getting-started', label: 'Getting Started', icon: Zap },
-    { id: 'text', label: 'Text', icon: MessageSquare },
-    { id: 'media', label: 'Media', icon: Image },
-    { id: 'interactive', label: 'Interactive', icon: List },
-    { id: 'examples', label: 'Code Examples', icon: Code },
-  ];
+export default function WhatsAppDocsPage() {
+  const [activeTab, setActiveTab] = useState("quickstart");
+  const [activeCode, setActiveCode] = useState("nodeSendText");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50 backdrop-blur-sm bg-white/90">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center">
-                <MessageSquare className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">WhatsApp API</h1>
-                <p className="text-sm text-slate-500">Send messages programmatically</p>
-              </div>
+    <div className="min-h-screen bg-slate-950 text-slate-50">
+      {/* Subtle gradient background */}
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute -top-40 left-1/4 h-80 w-80 rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="absolute -bottom-40 right-1/4 h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
+      </div>
+
+      <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 pb-20 pt-10 lg:flex-row">
+        {/* LEFT: Intro + Navigation */}
+        <aside className="w-full space-y-8 lg:w-80">
+          {/* Brand row (no big version header text) */}
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/30 via-emerald-500/10 to-slate-900 border border-emerald-400/30 shadow-lg shadow-emerald-900/50">
+              <Send className="h-5 w-5 text-emerald-200" />
             </div>
-            <div className="flex items-center space-x-2">
-              <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                v1.0
-              </span>
+            <div>
+              <h1 className="text-lg font-semibold text-slate-50 tracking-tight">
+                WhatsApp Messaging
+              </h1>
+              <p className="text-xs text-slate-400">
+                A minimal, developer-first messaging API.
+              </p>
             </div>
           </div>
-        </div>
-      </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex gap-6">
-          {/* Sidebar */}
-          <aside className="w-64 flex-shrink-0 sticky top-24 h-fit">
-            <nav className="bg-white rounded-xl shadow-sm border border-slate-200 p-2">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all ${
-                      activeTab === tab.id
-                        ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md'
-                        : 'text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span className="font-medium">{tab.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-          </aside>
+          {/* Mini highlight card */}
+          <div className="space-y-4 rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-slate-900/30 p-5 shadow-[0_22px_70px_rgba(0,0,0,0.7)] backdrop-blur-2xl">
+            <p className="text-sm text-slate-200">
+              Send reliable WhatsApp messages with a single HTTP call. Built for
+              modern stacks, optimized for performance and observability.
+            </p>
 
-          {/* Main Content */}
-          <main className="flex-1">
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-              {/* Getting Started */}
-              {activeTab === 'getting-started' && (
-                <div className="space-y-8">
-                  <div>
-                    <h2 className="text-3xl font-bold text-slate-900 mb-2">Getting Started</h2>
-                    <p className="text-slate-600">Start sending WhatsApp messages in minutes</p>
-                  </div>
-
-                  {/* API Key Section */}
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
-                    <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
-                      <Zap className="w-5 h-5 mr-2 text-green-600" />
-                      Your API Key
-                    </h3>
-                    <div className="bg-white rounded-lg p-4 border border-green-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">API Key</span>
-                        <button
-                          onClick={() => setShowApiKey(!showApiKey)}
-                          className="text-slate-500 hover:text-slate-700"
-                        >
-                          {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <code className="text-sm font-mono text-slate-900">
-                          {showApiKey ? demoApiKey : '•'.repeat(64)}
-                        </code>
-                        <button
-                          onClick={() => copyToClipboard(demoApiKey, 'api-key')}
-                          className="ml-4 p-2 hover:bg-green-100 rounded-md transition-colors"
-                        >
-                          {copiedSection === 'api-key' ? (
-                            <Check className="w-4 h-4 text-green-600" />
-                          ) : (
-                            <Copy className="w-4 h-4 text-slate-400" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-sm text-slate-600 mt-3">
-                      🔒 Keep your API key secure. Never share it publicly or commit it to version control.
-                    </p>
-                  </div>
-
-                  {/* Quick Start */}
-                  <div>
-                    <h3 className="text-xl font-semibold text-slate-900 mb-4">Quick Start</h3>
-                    <div className="space-y-4">
-                      <div className="flex items-start space-x-4">
-                        <div className="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center font-bold flex-shrink-0">1</div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-slate-900 mb-2">Link Your WhatsApp</h4>
-                          <p className="text-slate-600 text-sm mb-3">Connect your WhatsApp account by scanning the QR code in your dashboard.</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-start space-x-4">
-                        <div className="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center font-bold flex-shrink-0">2</div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-slate-900 mb-2">Get Your API Key</h4>
-                          <p className="text-slate-600 text-sm mb-3">Your API key is generated automatically after linking WhatsApp.</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-start space-x-4">
-                        <div className="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center font-bold flex-shrink-0">3</div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-slate-900 mb-2">Send Your First Message</h4>
-                          <p className="text-slate-600 text-sm mb-3">Use the API endpoint to send messages.</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Base URL */}
-                  <div>
-                    <h3 className="text-xl font-semibold text-slate-900 mb-4">Base URL</h3>
-                    <CodeBlock 
-                      code="https://your-domain.com/api/v1/whatsapp"
-                      id="base-url"
-                    />
-                  </div>
-
-                  {/* Authentication */}
-                  <div>
-                    <h3 className="text-xl font-semibold text-slate-900 mb-4">Authentication</h3>
-                    <p className="text-slate-600 mb-4">Include your API key in the request headers:</p>
-                    <CodeBlock 
-                      code={`curl -X POST https://your-domain.com/api/v1/whatsapp/send \\
-  -H "x-api-key: ${demoApiKey}" \\
-  -H "Content-Type: application/json"`}
-                      id="auth"
-                    />
-                  </div>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="space-y-1 rounded-2xl border border-white/5 bg-white/5 px-3 py-2">
+                <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.2em] text-slate-400">
+                  <Shield className="h-3 w-3" />
+                  Secure by design
                 </div>
-              )}
-
-              {/* Text Messages */}
-              {activeTab === 'text' && (
-                <div className="space-y-8">
-                  <div>
-                    <h2 className="text-3xl font-bold text-slate-900 mb-2">Text Messages</h2>
-                    <p className="text-slate-600">Send simple text messages to any WhatsApp number</p>
-                  </div>
-
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm text-blue-800">
-                      <strong>Endpoint:</strong> <code className="bg-white px-2 py-1 rounded">POST /api/v1/whatsapp/send</code>
-                    </p>
-                  </div>
-
-                  <div>
-                    <h3 className="text-xl font-semibold text-slate-900 mb-4">Request Body</h3>
-                    <CodeBlock 
-                      language="json"
-                      code={`{
-  "to": "918107171472",
-  "type": "text",
-  "text": "Hello! This is a test message from WhatsApp API 👋"
-}`}
-                      id="text-json"
-                    />
-                  </div>
-
-                  <div>
-                    <h3 className="text-xl font-semibold text-slate-900 mb-4">cURL Example</h3>
-                    <CodeBlock 
-                      code={`curl -X POST https://your-domain.com/api/v1/whatsapp/send \\
-  -H "x-api-key: ${demoApiKey}" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "to": "918107171472",
-    "type": "text",
-    "text": "Hello! This is a test message 👋"
-  }'`}
-                      id="text-curl"
-                    />
-                  </div>
-
-                  <div>
-                    <h3 className="text-xl font-semibold text-slate-900 mb-4">Response</h3>
-                    <CodeBlock 
-                      language="json"
-                      code={`{
-  "success": true,
-  "message": "Message sent successfully ✨",
-  "messageId": "3EB0C1A4B2E5F8D9A1B2",
-  "usedToday": 1,
-  "limit": 1000,
-  "remainingToday": 999
-}`}
-                      id="text-response"
-                    />
-                  </div>
+                <p className="text-[11px] text-slate-300">
+                  HMAC signatures & per-user API keys.
+                </p>
+              </div>
+              <div className="space-y-1 rounded-2xl border border-white/5 bg-white/5 px-3 py-2">
+                <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.2em] text-slate-400">
+                  <Globe className="h-3 w-3" />
+                  Global-ready
                 </div>
-              )}
-
-              {/* Media Messages */}
-              {activeTab === 'media' && (
-                <div className="space-y-8">
-                  <div>
-                    <h2 className="text-3xl font-bold text-slate-900 mb-2">Media Messages</h2>
-                    <p className="text-slate-600">Send images and documents via WhatsApp</p>
-                  </div>
-
-                  {/* Image */}
-                  <div>
-                    <h3 className="text-xl font-semibold text-slate-900 mb-4">Send Image</h3>
-                    <CodeBlock 
-                      language="json"
-                      code={`{
-  "to": "918107171472",
-  "type": "image",
-  "image_url": "https://example.com/image.jpg",
-  "text": "Check out this amazing image! 📸"
-}`}
-                      id="image-json"
-                    />
-                  </div>
-
-                  {/* Document */}
-                  <div>
-                    <h3 className="text-xl font-semibold text-slate-900 mb-4">Send Document</h3>
-                    <CodeBlock 
-                      language="json"
-                      code={`{
-  "to": "918107171472",
-  "type": "document",
-  "file_url": "https://example.com/invoice.pdf",
-  "text": "Here's your invoice 📄"
-}`}
-                      id="document-json"
-                    />
-                  </div>
-
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <p className="text-sm text-amber-800">
-                      <strong>Note:</strong> Media URLs must be publicly accessible. The file will be downloaded and sent to the recipient.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Interactive Messages */}
-              {activeTab === 'interactive' && (
-                <div className="space-y-8">
-                  <div>
-                    <h2 className="text-3xl font-bold text-slate-900 mb-2">Interactive Messages</h2>
-                    <p className="text-slate-600">Create engaging experiences with buttons, lists, and polls</p>
-                  </div>
-
-                  {/* Buttons */}
-                  <div>
-                    <h3 className="text-xl font-semibold text-slate-900 mb-4">Template Buttons</h3>
-                    <CodeBlock 
-                      language="json"
-                      code={`{
-  "to": "918107171472",
-  "type": "template",
-  "template": {
-    "text": "👋 Welcome! Choose an option:",
-    "footer": "Powered by WhatsApp API",
-    "buttons": [
-      { "id": "track_order", "title": "📦 Track Order" },
-      { "id": "view_products", "title": "🛒 Products" },
-      { "id": "contact_us", "title": "📞 Contact Us" }
-    ]
-  }
-}`}
-                      id="button-json"
-                    />
-                  </div>
-
-                  {/* List */}
-                  <div>
-                    <h3 className="text-xl font-semibold text-slate-900 mb-4">List Message</h3>
-                    <CodeBlock 
-                      language="json"
-                      code={`{
-  "to": "918107171472",
-  "type": "list",
-  "list": {
-    "message": {
-      "text": "Please select a category",
-      "footer": "Powered by WhatsApp API",
-      "title": "Product Categories",
-      "buttonText": "View Options",
-      "sections": [
-        {
-          "title": "Electronics",
-          "rows": [
-            {
-              "title": "Smartphones",
-              "rowId": "smartphones",
-              "description": "Latest mobile phones"
-            },
-            {
-              "title": "Laptops",
-              "rowId": "laptops",
-              "description": "High-performance laptops"
-            }
-          ]
-        }
-      ]
-    }
-  }
-}`}
-                      id="list-json"
-                    />
-                  </div>
-
-                  {/* Poll */}
-                  <div>
-                    <h3 className="text-xl font-semibold text-slate-900 mb-4">Poll Message</h3>
-                    <CodeBlock 
-                      language="json"
-                      code={`{
-  "to": "918107171472",
-  "type": "poll",
-  "poll": {
-    "question": "What's your favorite feature?",
-    "options": ["Fast Delivery", "Great Support", "Low Prices"],
-    "selectableCount": 1
-  }
-}`}
-                      id="poll-json"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Code Examples */}
-              {activeTab === 'examples' && (
-                <div className="space-y-8">
-                  <div>
-                    <h2 className="text-3xl font-bold text-slate-900 mb-2">Code Examples</h2>
-                    <p className="text-slate-600">Integration examples in popular languages</p>
-                  </div>
-
-                  {/* JavaScript/Node.js */}
-                  <div>
-                    <h3 className="text-xl font-semibold text-slate-900 mb-4">JavaScript (Node.js)</h3>
-                    <CodeBlock 
-                      language="javascript"
-                      code={`const axios = require('axios');
-
-const API_KEY = '${demoApiKey}';
-const BASE_URL = 'https://your-domain.com/api/v1/whatsapp';
-
-async function sendMessage(to, text) {
-  try {
-    const response = await axios.post(\`\${BASE_URL}/send\`, {
-      to: to,
-      type: 'text',
-      text: text
-    }, {
-      headers: {
-        'x-api-key': API_KEY,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    console.log('✅ Message sent:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('❌ Error:', error.response?.data || error.message);
-    throw error;
-  }
-}
-
-// Usage
-sendMessage('918107171472', 'Hello from Node.js! 🚀');`}
-                      id="js-example"
-                    />
-                  </div>
-
-                  {/* Python */}
-                  <div>
-                    <h3 className="text-xl font-semibold text-slate-900 mb-4">Python</h3>
-                    <CodeBlock 
-                      language="python"
-                      code={`import requests
-
-API_KEY = '${demoApiKey}'
-BASE_URL = 'https://your-domain.com/api/v1/whatsapp'
-
-def send_message(to, text):
-    headers = {
-        'x-api-key': API_KEY,
-        'Content-Type': 'application/json'
-    }
-    
-    payload = {
-        'to': to,
-        'type': 'text',
-        'text': text
-    }
-    
-    response = requests.post(
-        f'{BASE_URL}/send',
-        json=payload,
-        headers=headers
-    )
-    
-    if response.status_code == 200:
-        print('✅ Message sent:', response.json())
-        return response.json()
-    else:
-        print('❌ Error:', response.json())
-        raise Exception(response.json())
-
-# Usage
-send_message('918107171472', 'Hello from Python! 🐍')`}
-                      id="python-example"
-                    />
-                  </div>
-
-                  {/* PHP */}
-                  <div>
-                    <h3 className="text-xl font-semibold text-slate-900 mb-4">PHP</h3>
-                    <CodeBlock 
-                      language="php"
-                      code={`<?php
-
-$apiKey = '${demoApiKey}';
-$baseUrl = 'https://your-domain.com/api/v1/whatsapp';
-
-function sendMessage($to, $text) {
-    global $apiKey, $baseUrl;
-    
-    $data = [
-        'to' => $to,
-        'type' => 'text',
-        'text' => $text
-    ];
-    
-    $ch = curl_init("$baseUrl/send");
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'x-api-key: ' . $apiKey,
-        'Content-Type: application/json'
-    ]);
-    
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    if ($httpCode == 200) {
-        echo "✅ Message sent: $response\\n";
-        return json_decode($response);
-    } else {
-        echo "❌ Error: $response\\n";
-        throw new Exception($response);
-    }
-}
-
-// Usage
-sendMessage('918107171472', 'Hello from PHP! 🐘');`}
-                      id="php-example"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="mt-8 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">Need Help?</h3>
-              <p className="text-slate-600 text-sm mb-4">
-                Check out our full documentation or contact support for assistance.
-              </p>
-              <div className="flex gap-3">
-                <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium">
-                  View Full Docs
-                </button>
-                <button className="px-4 py-2 bg-white text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium border border-slate-200">
-                  Contact Support
-                </button>
+                <p className="text-[11px] text-slate-300">
+                  Scale from a single message to millions.
+                </p>
               </div>
             </div>
-          </main>
-        </div>
+
+            <div className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent px-3 py-2">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15 text-[10px] font-semibold text-emerald-200">
+                  API
+                </span>
+                <div>
+                  <p className="text-[11px] text-slate-300">
+                    Base URL
+                  </p>
+                  <p className="text-[11px] font-mono text-emerald-200">
+                    https://your-domain.com/api
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabs / Section Nav */}
+          <nav className="space-y-3">
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-[0.22em]">
+              Documentation
+            </p>
+            <div className="flex flex-col gap-1">
+              {[
+                { id: "quickstart", label: "Quickstart" },
+                { id: "auth", label: "Authentication & Security" },
+                { id: "text", label: "Send Text Messages" },
+                { id: "media", label: "Send Media & Files" },
+                { id: "errors", label: "Errors & Troubleshooting" },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`group flex items-center justify-between rounded-2xl px-3 py-2 text-sm transition ${
+                    activeTab === item.id
+                      ? "bg-white/5 text-slate-50 border border-white/10"
+                      : "text-slate-400 hover:text-slate-100 hover:bg-white/5 border border-transparent"
+                  }`}
+                >
+                  <span>{item.label}</span>
+                  <ChevronRight
+                    className={`h-4 w-4 transition-transform ${
+                      activeTab === item.id ? "translate-x-0" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+          </nav>
+
+          {/* Small footer */}
+          <div className="border-t border-white/5 pt-4 text-[11px] text-slate-500">
+            <p>Designed for clean integrations & minimal setup.</p>
+          </div>
+        </aside>
+
+        {/* RIGHT: Content */}
+        <main className="flex-1 space-y-6">
+          {/* Top strip: SDKs & status */}
+          <section className="grid gap-3 rounded-3xl border border-white/10 bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-slate-900/40 p-4 backdrop-blur-xl sm:grid-cols-[1.2fr_1fr]">
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+                START HERE
+              </p>
+              <h2 className="text-lg font-semibold text-slate-50">
+                Integrate WhatsApp into your product in minutes.
+              </h2>
+              <p className="text-sm text-slate-300">
+                Use any HTTP client you already love. cURL, Axios, Fetch —
+                everything just works.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 justify-end">
+              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-medium text-emerald-200">
+                Status: Operational
+              </span>
+              <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-medium text-slate-200 inline-flex items-center gap-1">
+                <Code className="h-3 w-3" />
+                Node · REST · Frontend
+              </span>
+            </div>
+          </section>
+
+          {/* Active Tab Content */}
+          {activeTab === "quickstart" && (
+            <section className="space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold text-slate-50">
+                  1. Get your API key
+                </h3>
+                <p className="text-sm text-slate-300">
+                  After creating your account, generate a per-project API key
+                  from your dashboard. Keep this key secret — it grants full
+                  access to your WhatsApp messages.
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-3 rounded-3xl border border-white/10 bg-slate-900/70 p-4">
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+                    Example API Key
+                  </p>
+                  <div className="flex items-center justify-between rounded-2xl bg-black/40 px-3 py-3">
+                    <p className="font-mono text-[11px] text-slate-200 truncate">
+                      sk_live_whatsapp_4e0f39e2b0f84c4a9dfc7c12
+                    </p>
+                    <Copy className="h-4 w-4 text-slate-400" />
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Attach it as <span className="font-mono">x-api-key</span>{" "}
+                    on every request.
+                  </p>
+                </div>
+
+                <div className="space-y-3 rounded-3xl border border-white/10 bg-slate-900/70 p-4">
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+                    HTTP Headers
+                  </p>
+                  <div className="space-y-2 text-[11px]">
+                    <div className="flex justify-between">
+                      <span className="font-mono text-slate-300">
+                        x-api-key
+                      </span>
+                      <span className="text-slate-500">Required</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-mono text-slate-300">
+                        Content-Type
+                      </span>
+                      <span className="text-slate-500">application/json</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="text-base font-semibold text-slate-50">
+                  2. Send your first message
+                </h3>
+                <p className="text-sm text-slate-300">
+                  Use any HTTP client. Here&apos;s an example using Node.js and
+                  Axios:
+                </p>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <button
+                    onClick={() => setActiveCode("nodeSendText")}
+                    className={`rounded-full px-3 py-1.5 ${
+                      activeCode === "nodeSendText"
+                        ? "bg-emerald-500/15 text-emerald-100 border border-emerald-400/40"
+                        : "bg-white/5 text-slate-300 border border-white/10"
+                    }`}
+                  >
+                    Node.js
+                  </button>
+                  <button
+                    onClick={() => setActiveCode("restExample")}
+                    className={`rounded-full px-3 py-1.5 ${
+                      activeCode === "restExample"
+                        ? "bg-emerald-500/15 text-emerald-100 border border-emerald-400/40"
+                        : "bg-white/5 text-slate-300 border border-white/10"
+                    }`}
+                  >
+                    Raw REST
+                  </button>
+                </div>
+                <CodeBlock
+                  label={
+                    activeCode === "nodeSendText"
+                      ? "Send a text message"
+                      : "Send a text message (REST)"
+                  }
+                  code={
+                    activeCode === "nodeSendText"
+                      ? codeBlocks.nodeSendText
+                      : codeBlocks.restExample
+                  }
+                />
+              </div>
+            </section>
+          )}
+
+          {activeTab === "auth" && (
+            <section className="space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold text-slate-50">
+                  Authentication & Security
+                </h3>
+                <p className="text-sm text-slate-300">
+                  Every request must be authenticated using your API key. For
+                  extra security, you can also enable HMAC signatures.
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-3 rounded-3xl border border-white/10 bg-slate-900/70 p-4">
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+                    API Key (required)
+                  </p>
+                  <p className="text-sm text-slate-300">
+                    Send your key via the{" "}
+                    <span className="font-mono text-emerald-200">x-api-key</span>{" "}
+                    header:
+                  </p>
+                  <pre className="mt-2 rounded-2xl bg-black/50 p-3 text-[11px] text-slate-100">
+                    <code>
+                      x-api-key: sk_live_whatsapp_4e0f39e2b0f84c4a9dfc7c12
+                    </code>
+                  </pre>
+                </div>
+                <div className="space-y-3 rounded-3xl border border-white/10 bg-slate-900/70 p-4">
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+                    HMAC Signature (optional)
+                  </p>
+                  <p className="text-sm text-slate-300">
+                    If enabled, you&apos;ll receive a secret used to sign
+                    request payloads. Verify the signature on your backend for
+                    maximum security.
+                  </p>
+                  <div className="mt-2 rounded-2xl bg-black/50 p-3 text-[11px] text-slate-100">
+                    <p className="font-mono text-slate-300">
+                      X-Signature: hex(hmac_sha256(secret, body))
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {activeTab === "text" && (
+            <section className="space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold text-slate-50">
+                  Sending Text Messages
+                </h3>
+                <p className="text-sm text-slate-300">
+                  Text messages are the simplest way to start. Provide the
+                  recipient in international format and a UTF-8 message body.
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-[1.2fr_1fr]">
+                <CodeBlock
+                  label="Send a text message (Node.js)"
+                  code={codeBlocks.nodeSendText}
+                />
+                <div className="space-y-3 rounded-3xl border border-white/10 bg-slate-900/70 p-4">
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+                    Request Body
+                  </p>
+                  <pre className="rounded-2xl bg-black/50 p-3 text-[11px] text-slate-100">
+                    <code>{`{
+  "to": "918107171472",
+  "message": "Hello from the WhatsApp API 🚀"
+}`}</code>
+                  </pre>
+                  <ul className="space-y-1 text-[11px] text-slate-300">
+                    <li>
+                      <span className="font-mono text-emerald-200">to</span> –
+                      Recipient in E.164 format.
+                    </li>
+                    <li>
+                      <span className="font-mono text-emerald-200">
+                        message
+                      </span>{" "}
+                      – Up to 4096 characters.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {activeTab === "media" && (
+            <section className="space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold text-slate-50">
+                  Sending Media & Files
+                </h3>
+                <p className="text-sm text-slate-300">
+                  Send images, PDFs, CSVs, and other supported media types by
+                  passing a public URL and specifying the{" "}
+                  <span className="font-mono text-emerald-200">mediaType</span>.
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-[1.2fr_1fr]">
+                <CodeBlock
+                  label="Send a media message (Node.js)"
+                  code={codeBlocks.nodeSendMedia}
+                />
+                <div className="space-y-3 rounded-3xl border border-white/10 bg-slate-900/70 p-4">
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+                    Supported media
+                  </p>
+                  <ul className="space-y-1 text-[11px] text-slate-300">
+                    <li>Images: JPG, PNG, WebP</li>
+                    <li>Documents: PDF, CSV, DOCX</li>
+                    <li>Videos (short): MP4</li>
+                  </ul>
+                  <p className="text-[11px] text-slate-400">
+                    Make sure your URL is publicly accessible or signed with a
+                    short-lived token from your storage provider.
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {activeTab === "errors" && (
+            <section className="space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold text-slate-50">
+                  Errors & Troubleshooting
+                </h3>
+                <p className="text-sm text-slate-300">
+                  Every response includes a clear error message and a stable
+                  error code you can use for handling and analytics.
+                </p>
+              </div>
+
+              <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-900/70">
+                <table className="w-full text-left text-[12px] text-slate-300">
+                  <thead className="bg-white/5 text-slate-400">
+                    <tr>
+                      <th className="px-4 py-2 font-medium">Code</th>
+                      <th className="px-4 py-2 font-medium">HTTP</th>
+                      <th className="px-4 py-2 font-medium">Message</th>
+                      <th className="px-4 py-2 font-medium">What it means</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    <tr>
+                      <td className="px-4 py-2 font-mono text-emerald-200">
+                        INVALID_API_KEY
+                      </td>
+                      <td className="px-4 py-2">401</td>
+                      <td className="px-4 py-2">Invalid or missing API key.</td>
+                      <td className="px-4 py-2">
+                        Check your <span className="font-mono">x-api-key</span>{" "}
+                        header.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2 font-mono text-emerald-200">
+                        INVALID_MEDIA_TYPE
+                      </td>
+                      <td className="px-4 py-2">400</td>
+                      <td className="px-4 py-2">Unsupported mediaType.</td>
+                      <td className="px-4 py-2">
+                        Use <span className="font-mono">image</span>,{" "}
+                        <span className="font-mono">video</span>, or{" "}
+                        <span className="font-mono">document</span>.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2 font-mono text-emerald-200">
+                        RATE_LIMITED
+                      </td>
+                      <td className="px-4 py-2">429</td>
+                      <td className="px-4 py-2">Too many requests.</td>
+                      <td className="px-4 py-2">
+                        Back off and retry with exponential delay.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2 font-mono text-emerald-200">
+                        PROVIDER_ERROR
+                      </td>
+                      <td className="px-4 py-2">502</td>
+                      <td className="px-4 py-2">
+                        Upstream WhatsApp provider error.
+                      </td>
+                      <td className="px-4 py-2">
+                        Usually transient. Safe to retry.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="rounded-3xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-amber-100 flex items-start gap-2">
+                <Phone className="h-4 w-4 mt-0.5" />
+                <p>
+                  While testing, make sure the{" "}
+                  <span className="font-mono text-amber-100">to</span> number is
+                  registered on WhatsApp and formatted in E.164 (e.g.{" "}
+                  <span className="font-mono text-amber-100">
+                    918107171472
+                  </span>
+                  ).
+                </p>
+              </div>
+            </section>
+          )}
+
+          {/* Bottom CTA */}
+          <section className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-white/10 bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-slate-900/40 px-4 py-3">
+            <div className="flex items-center gap-2 text-xs text-slate-300">
+              <LinkIcon className="h-4 w-4" />
+              <span>
+                Want to embed this in your docs or dashboard UI? Just reuse
+                these components inside your React app.
+              </span>
+            </div>
+          </section>
+        </main>
       </div>
     </div>
   );
