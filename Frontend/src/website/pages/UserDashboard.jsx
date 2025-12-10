@@ -331,26 +331,83 @@ const UserDashboard = () => {
         </Grid>
 
         {/* ----------- API Key Status ----------- */}
-        <Grid item xs={12} md={4}>
-          <Card
+        {/* ----------- API Key Status ----------- */}
+<Grid item xs={12} md={4}>
+  <Card
+    sx={{
+      borderRadius: 4,
+      height: "100%",
+      color: "white",
+      background:
+        "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+      position: "relative",
+      paddingBottom: 2
+    }}
+  >
+    <CardContent>
+      <Typography variant="h6" sx={{ mb: 1 }}>
+        🔑 API Key
+      </Typography>
+
+      {apiKey ? (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            background: "rgba(255,255,255,0.2)",
+            padding: "10px",
+            borderRadius: 2,
+            color: "black",
+            overflowX: "auto",
+          }}
+        >
+          <Typography
             sx={{
-              borderRadius: 4,
-              height: "100%",
+              fontSize: "0.85rem",
+              fontWeight: "bold",
+              whiteSpace: "nowrap",
+              flexGrow: 1,
               color: "white",
-              background:
-                "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
             }}
           >
-            <CardContent>
-              <Typography variant="h6">🔑 API Key</Typography>
-              {apiKey ? (
-                <Typography>{apiKey.substring(0, 20)}...</Typography>
-              ) : (
-                "Not Generated"
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
+            {apiKey}
+          </Typography>
+
+          <Tooltip title="Copy API Key">
+            <IconButton
+              onClick={() => {
+                navigator.clipboard.writeText(apiKey);
+                showSnackbar("Copied to clipboard!", "success");
+              }}
+              sx={{
+                background: "rgba(255,255,255,0.3)",
+                borderRadius: 2,
+                "&:hover": { background: "rgba(255,255,255,0.5)" }
+              }}
+            >
+              📋
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ) : (
+        <Typography>Not Generated</Typography>
+      )}
+    </CardContent>
+
+    <Box sx={{ textAlign: "center", mt: 1 }}>
+      <Button
+        variant="contained"
+        color="warning"
+        onClick={regenerateApiKey}
+        size="small"
+      >
+        Regenerate Key
+      </Button>
+    </Box>
+  </Card>
+</Grid>
+
 
         {/* ----------- Send Message + Incoming Messages ----------- */}
         <Grid item xs={12}>
