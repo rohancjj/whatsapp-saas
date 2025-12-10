@@ -66,6 +66,7 @@ export default function App() {
             <Route path="pricing" element={<Pricing />} />
             <Route path="dashboard" element={<UserDashboard />} />
             <Route path="/user/payment/:planId" element={<PaymentPage />} />
+            
 
           </Route>
 

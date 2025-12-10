@@ -3,7 +3,6 @@ import {
   Container,
   Typography,
   Card,
-  CardContent,
   Button,
   CircularProgress,
   Grid,
@@ -14,7 +13,6 @@ import {
   Tabs,
   Tab,
   Tooltip,
-  TextField,
   Paper,
 } from "@mui/material";
 import axios from "axios";
@@ -55,14 +53,9 @@ const UserDashboard = () => {
 
   const [tabValue, setTabValue] = useState(0);
 
-  const [messageToSend, setMessageToSend] = useState("");
-  const [recipientNumber, setRecipientNumber] = useState("");
-  const [chatMessages, setChatMessages] = useState([]);
+  // Removed state: messageToSend, recipientNumber, chatMessages
 
-  const messagesEndRef = useRef(null);
-
-  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  useEffect(scrollToBottom, [chatMessages]);
+  // Removed functions: scrollToBottom (no longer needed), sendMessage (no longer needed)
 
   const getUserId = () => {
     const token = localStorage.getItem("token");
@@ -136,26 +129,7 @@ const UserDashboard = () => {
     }
   };
 
-  const sendMessage = async () => {
-    if (!recipientNumber || !messageToSend) {
-      showSnackbar("Please enter number & message", "warning");
-      return;
-    }
-
-    try {
-      await axios.post(
-        "http://localhost:8080/api/v1/whatsapp/send",
-        { to: recipientNumber, text: messageToSend },
-        { headers: { "x-api-key": apiKey } }
-      );
-
-      setChatMessages((prev) => [...prev, { from: "you", text: messageToSend, timestamp: new Date() }]);
-      setMessageToSend("");
-      showSnackbar("Message sent!", "success");
-    } catch {
-      showSnackbar("Failed to send message", "error");
-    }
-  };
+  // Removed function: sendMessage
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -195,9 +169,7 @@ const UserDashboard = () => {
       showSnackbar("WhatsApp connected!", "success");
     });
 
-    socket.on("incoming_message", (msg) => {
-      setChatMessages((prev) => [...prev, msg]);
-    });
+    // Removed socket.on("incoming_message")
 
     return () => socket.disconnect();
   }, [userId]);
@@ -218,7 +190,7 @@ const UserDashboard = () => {
           TabIndicatorProps={{ style: { background: "black", height: 3 } }}
         >
           <Tab label="Overview" />
-          <Tab label="Messaging" />
+          {/* Removed: <Tab label="Messaging" /> */}
           <Tab label="API Key" />
           <Tab label="Connect WhatsApp" />
         </Tabs>
@@ -272,42 +244,10 @@ const UserDashboard = () => {
         </Grid>
       </TabPanel>
 
-      {/* ---------- MESSAGING ---------- */}
-      <TabPanel value={tabValue} index={1}>
-        <Card sx={{ p: 3, borderRadius: 4 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            Send Message
-          </Typography>
-
-          {!whatsAppConnected ? (
-            <Alert severity="warning">Connect WhatsApp to send messages.</Alert>
-          ) : (
-            <>
-              <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-                <TextField fullWidth label="Phone Number" value={recipientNumber} onChange={(e) => setRecipientNumber(e.target.value)} />
-                <TextField fullWidth label="Message" value={messageToSend} onChange={(e) => setMessageToSend(e.target.value)} />
-                <Button variant="contained" onClick={sendMessage} sx={{ px: 3, borderRadius: 3 }}>
-                  Send
-                </Button>
-              </Box>
-
-              <Paper sx={{ p: 2, height: 300, overflowY: "auto", borderRadius: 3, background: "#f8f8f8" }}>
-                {chatMessages.map((msg, i) => (
-                  <Box key={i} sx={{ display: "flex", justifyContent: msg.from === "you" ? "flex-end" : "flex-start", mb: 1 }}>
-                    <Box sx={{ px: 2, py: 1, borderRadius: 3, background: msg.from === "you" ? "#DCFEDB" : "#E7E7E7", maxWidth: "65%" }}>
-                      <Typography>{msg.text}</Typography>
-                    </Box>
-                  </Box>
-                ))}
-                <div ref={messagesEndRef} />
-              </Paper>
-            </>
-          )}
-        </Card>
-      </TabPanel>
+      {/* Removed: MESSAGING TAB PANEL (index=1 is now API Key) */}
 
       {/* ---------- API KEY ---------- */}
-      <TabPanel value={tabValue} index={2}>
+      <TabPanel value={tabValue} index={1}>
         <Card sx={{ p: 3, borderRadius: 4 }}>
           <Typography variant="h6">API Key</Typography>
 
@@ -327,7 +267,8 @@ const UserDashboard = () => {
       </TabPanel>
 
       {/* ---------- CONNECT WHATSAPP ---------- */}
-      <TabPanel value={tabValue} index={3}>
+      {/* Index adjusted from 3 to 2 */}
+      <TabPanel value={tabValue} index={2}>
         <Card sx={{ p: 3, borderRadius: 4, textAlign: "center" }}>
           <Typography variant="h6">
             {whatsAppConnected ? "WhatsApp Connected ✓" : "Connect WhatsApp"}
