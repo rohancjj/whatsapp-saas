@@ -6,6 +6,7 @@ import WhatsAppSession from "../models/WhatsAppSession.js";
 import { resetIfNeeded } from "../utils/resetMessageLimit.js";
 import mime from "mime-types";
 import { createInstanceForUser, getUserSock } from "../services/whatsappManager.js";
+import { getAdminSock, initializeAdminWhatsApp } from "../services/adminWhatsapp.js";
 
 const router = express.Router();
 const generateApiKey = () => `wa_${crypto.randomBytes(32).toString("hex")}`;
@@ -225,36 +226,55 @@ router.post("/webhook", async (req, res) => {
 /* ===========================
    DISCONNECT ADMIN WHATSAPP
 ===========================*/
+
 router.post("/disconnect", authMiddleware, async (req, res) => {
   try {
     const io = req.app.get("io");
+    const sock = getAdminSock();
 
-    const adminId = "ADMIN"; // or store admin session id from DB
-    const sock = getUserSock(adminId);
+    console.log("🚫 Disconnect request received");
 
-    if (!sock) return res.status(400).json({ message: "No active session" });
+    // If no active admin session (already logged out)
+    if (!sock || !sock.user) {
+      console.log("⚠️ No active Admin WA session. Resetting DB...");
 
-    // Disconnect session
-    await sock.logout();
-    
-    // Remove instance from memory
-    sock.ws.close();
-    
-    // Update storage
-    await WhatsAppSession.updateOne(
-      { userId: adminId },
-      { connected: false }
-    );
+      await WhatsAppSession.deleteMany({});
+      io.emit("admin_disconnected");
 
-    // Notify frontend
+      // Restart admin session (generate new QR)
+      setTimeout(() => initializeAdminWhatsApp(io), 1500);
+
+      return res.json({ success: true, message: "No active session. Restarting..." });
+    }
+
+    // Graceful logout
+    try { await sock.logout(); } catch {}
+    try { sock.ws?.close(); } catch {}
+
+    console.log("🧹 Admin WA session terminated. Cleaning DB...");
+    await WhatsAppSession.deleteMany({});
+
     io.emit("admin_disconnected");
 
-    res.json({ success: true, message: "Admin WhatsApp disconnected" });
+    // Restart service after short delay
+    setTimeout(() => {
+      console.log("♻️ Restarting Admin WA to generate fresh QR...");
+      initializeAdminWhatsApp(io);
+    }, 1500);
+
+    res.json({ success: true, message: "Admin WhatsApp disconnected. Restarting..." });
+
   } catch (err) {
     console.error("Disconnect error:", err);
     res.status(500).json({ error: err.message });
   }
 });
+
+
+
+
+
+
 
 
 export default router;

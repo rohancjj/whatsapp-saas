@@ -190,17 +190,21 @@ export const initializeAdminWhatsApp = async (io) => {
 
 
         if (qr && connection !== "open" && !sock.user) {
-          const now = Date.now();
-          if (now - lastQREmitTime > QR_EMIT_COOLDOWN) {
-            console.log("📲 Admin QR Generated - Emitting to frontend");
-            io.emit("admin_qr", qr);
-            io.emit("admin_disconnected");
-            lastQREmitTime = now;
-          } else {
-            console.log("⏸️ QR emission throttled (too frequent)");
-          }
-          return;
-        }
+  const now = Date.now();
+  if (now - lastQREmitTime > QR_EMIT_COOLDOWN) {
+    console.log("📲 Admin QR Generated - Emitting to frontend");
+    io.emit("admin_qr", qr);
+
+    // Only emit disconnected if no QR was shown before and no existing session
+    if (!adminSock?.user) {
+      console.log("⚠️ Admin session offline - showing QR mode");
+    }
+
+    lastQREmitTime = now;
+  }
+  return;
+}
+
 
    
         if (connection === "connecting") {

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Mail,
   Lock,
@@ -12,13 +12,59 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
+  LogIn, // Added for the redirect card
 } from "lucide-react";
 
+// --- REVISED TOASTER SUCCESS COMPONENT ---
+function RedirectSuccessCard({ onComplete }) {
+  const [countdown, setCountdown] = useState(5);
+
+  useEffect(() => {
+    if (countdown === 0) {
+      onComplete(); // Execute redirect after countdown
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setCountdown(countdown - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [countdown, onComplete]);
+
+  // keyframes and transition for a smooth entry/exit (tailwind needs config for this, but we'll use simple classes)
+  return (
+    // REVISED: fixed, top-center positioning, small padding, no black overlay
+    <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 p-2 pointer-events-none">
+      <div 
+        className="bg-white p-4 rounded-xl shadow-2xl border border-green-200 
+                   max-w-xs transition-all duration-500 ease-out 
+                   transform translate-y-0 opacity-100"
+      >
+        <div className="flex items-center gap-3">
+          <CheckCircle size={20} className="text-green-600 flex-shrink-0" />
+          <div className="flex flex-col">
+            <h2 className="text-sm font-bold text-gray-900">
+              Signup Successful!
+            </h2>
+            <p className="text-xs text-gray-600">
+              Redirecting to Sign In in... 
+              <span className="font-semibold text-green-700 ml-1">{countdown}s</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- MAIN COMPONENT ---
 export default function PremiumAuth() {
   const [mode, setMode] = useState("signin");
   const [loading, setLoading] = useState(false);
   const [checkingPhone, setCheckingPhone] = useState(false);
   const [phoneStatus, setPhoneStatus] = useState(null); // null, 'verified', 'not-found', 'unavailable'
+  const [showSuccessCard, setShowSuccessCard] = useState(false); // State for success card
 
   const [form, setForm] = useState({
     fullName: "",
@@ -36,7 +82,7 @@ export default function PremiumAuth() {
   };
 
   /* ------------------------------------------------------
-      WHATSAPP NUMBER CHECK
+    WHATSAPP NUMBER CHECK 
   ------------------------------------------------------ */
   const checkWhatsAppNumber = async (number) => {
     try {
@@ -64,7 +110,7 @@ export default function PremiumAuth() {
   };
 
   /* ------------------------------------------------------
-      PHONE VALIDATION (ON BLUR)
+    PHONE VALIDATION (ON BLUR) 
   ------------------------------------------------------ */
   const handlePhoneBlur = async () => {
     if (!form.phone || form.phone.length < 10) return;
@@ -83,7 +129,7 @@ export default function PremiumAuth() {
   };
 
   /* ------------------------------------------------------
-      LOGIN HANDLER
+    LOGIN HANDLER 
   ------------------------------------------------------ */
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -110,18 +156,24 @@ export default function PremiumAuth() {
   };
 
   /* ------------------------------------------------------
-      SIGNUP HANDLER
+    SIGNUP HANDLER 
   ------------------------------------------------------ */
   const handleSignup = async (e) => {
-    e.preventDefault();
+    e.preventDefault(); 
     setLoading(true);
 
     if (!form.phone) {
       setLoading(false);
       return alert("Please enter your phone number.");
     }
+    
+    // Basic validation check to ensure all fields are non-empty
+    if (!form.fullName || !form.email || !form.password || !form.usage) {
+        setLoading(false);
+        return alert("Please fill out all required fields.");
+    }
 
-    // Proceed with signup regardless of verification status
+
     try {
       const res = await fetch("http://localhost:8080/auth/signup", {
         method: "POST",
@@ -141,14 +193,30 @@ export default function PremiumAuth() {
         return alert(data.message || "Signup failed");
       }
 
-      alert("Account created successfully!");
-      setMode("signin");
+      // Success: show the card
       setLoading(false);
+      setShowSuccessCard(true); 
+      
     } catch (err) {
       setLoading(false);
       alert("Server error");
     }
   };
+  
+  // Handler passed to the success card to execute the final action (switch mode)
+  const handleRedirect = () => {
+      // Clear all fields except email, switch mode, and hide card
+      setForm({ 
+        fullName: "", 
+        email: form.email, // Pre-fill email for signin
+        password: "", 
+        phone: "", 
+        usage: "" 
+      });
+      setMode("signin");
+      setShowSuccessCard(false);
+  };
+
 
   // Get status display info
   const getPhoneStatusDisplay = () => {
@@ -182,6 +250,9 @@ export default function PremiumAuth() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-gray-100 flex items-center justify-center px-6 py-12">
+      {/* RENDER SUCCESS CARD AS A MINIMAL TOAST NOTIFICATION */}
+      {showSuccessCard && <RedirectSuccessCard onComplete={handleRedirect} />} 
+      
       <div className="w-full max-w-6xl bg-white shadow-2xl rounded-3xl overflow-hidden border border-gray-200 grid grid-cols-1 md:grid-cols-2">
 
         {/* LEFT DESIGN PANEL */}
@@ -250,7 +321,7 @@ export default function PremiumAuth() {
           {/* Tabs */}
           <div className="flex gap-2 bg-gray-100 p-1 rounded-2xl w-fit mb-10">
             <button
-              onClick={() => setMode("signin")}
+              onClick={() => { setMode("signin"); setShowSuccessCard(false); }} 
               className={`px-5 py-2 rounded-xl text-sm transition-all ${
                 mode === "signin" ? "bg-white shadow font-medium" : "text-gray-500"
               }`}
@@ -258,7 +329,7 @@ export default function PremiumAuth() {
               Sign In
             </button>
             <button
-              onClick={() => setMode("signup")}
+              onClick={() => { setMode("signup"); setShowSuccessCard(false); }} 
               className={`px-5 py-2 rounded-xl text-sm transition-all ${
                 mode === "signup" ? "bg-white shadow font-medium" : "text-gray-500"
               }`}
@@ -269,7 +340,7 @@ export default function PremiumAuth() {
 
           {/* Login Form */}
           {mode === "signin" && (
-            <div className="space-y-6">
+            <form onSubmit={handleLogin} className="space-y-6">
               <div>
                 <label className="text-sm font-medium text-gray-900">Email</label>
                 <div className="flex items-center gap-2 bg-gray-100 p-3 rounded-xl mt-2">
@@ -278,6 +349,7 @@ export default function PremiumAuth() {
                     name="email"
                     type="email"
                     onChange={handleChange}
+                    value={form.email}
                     className="bg-transparent outline-none w-full text-gray-800"
                     placeholder="you@example.com"
                   />
@@ -292,6 +364,7 @@ export default function PremiumAuth() {
                     name="password"
                     type="password"
                     onChange={handleChange}
+                    value={form.password}
                     className="bg-transparent outline-none w-full text-gray-800"
                     placeholder="••••••••"
                   />
@@ -299,17 +372,18 @@ export default function PremiumAuth() {
               </div>
 
               <button 
-                onClick={handleLogin}
+                type="submit"
                 className="w-full bg-gray-900 text-white py-3 rounded-xl text-lg font-semibold shadow hover:scale-[1.01] transition-all flex items-center justify-center gap-2"
               >
                 Continue <ArrowRight size={20} />
               </button>
-            </div>
+            </form>
           )}
 
           
+          {/* Signup Form */}
           {mode === "signup" && (
-            <div className="space-y-6">
+            <form onSubmit={handleSignup} className="space-y-6">
               <div>
                 <label className="text-sm font-medium text-gray-900">Full Name</label>
                 <div className="flex items-center gap-2 bg-gray-100 p-3 rounded-xl mt-2">
@@ -317,6 +391,7 @@ export default function PremiumAuth() {
                   <input
                     name="fullName"
                     onChange={handleChange}
+                    value={form.fullName}
                     className="bg-transparent outline-none w-full text-gray-800"
                     placeholder="Rohan Jangir"
                   />
@@ -331,6 +406,7 @@ export default function PremiumAuth() {
                     name="email"
                     type="email"
                     onChange={handleChange}
+                    value={form.email}
                     className="bg-transparent outline-none w-full text-gray-800"
                     placeholder="you@example.com"
                   />
@@ -345,6 +421,7 @@ export default function PremiumAuth() {
                     name="password"
                     type="password"
                     onChange={handleChange}
+                    value={form.password}
                     className="bg-transparent outline-none w-full text-gray-800"
                     placeholder="Create a strong password"
                   />
@@ -356,6 +433,7 @@ export default function PremiumAuth() {
                 <select
                   name="usage"
                   onChange={handleChange}
+                  value={form.usage}
                   className="bg-gray-100 p-3 rounded-xl outline-none w-full text-gray-700 mt-2"
                 >
                   <option value="">Select an option</option>
@@ -377,6 +455,7 @@ export default function PremiumAuth() {
                     type="tel"
                     onChange={handleChange}
                     onBlur={handlePhoneBlur}
+                    value={form.phone}
                     className="bg-transparent outline-none w-full text-gray-800"
                     placeholder="+91 98765 43210"
                   />
@@ -397,14 +476,14 @@ export default function PremiumAuth() {
               </div>
 
               <button 
-                onClick={handleSignup}
+                type="submit"
                 disabled={loading}
                 className="w-full bg-gray-900 text-white py-3 rounded-xl text-lg font-semibold shadow hover:scale-[1.01] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? "Creating Account…" : "Create Account"}
                 <ArrowRight size={20} />
               </button>
-            </div>
+            </form>
           )}
         </div>
       </div>
