@@ -222,5 +222,39 @@ router.post("/webhook", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+/* ===========================
+   DISCONNECT ADMIN WHATSAPP
+===========================*/
+router.post("/disconnect", authMiddleware, async (req, res) => {
+  try {
+    const io = req.app.get("io");
+
+    const adminId = "ADMIN"; // or store admin session id from DB
+    const sock = getUserSock(adminId);
+
+    if (!sock) return res.status(400).json({ message: "No active session" });
+
+    // Disconnect session
+    await sock.logout();
+    
+    // Remove instance from memory
+    sock.ws.close();
+    
+    // Update storage
+    await WhatsAppSession.updateOne(
+      { userId: adminId },
+      { connected: false }
+    );
+
+    // Notify frontend
+    io.emit("admin_disconnected");
+
+    res.json({ success: true, message: "Admin WhatsApp disconnected" });
+  } catch (err) {
+    console.error("Disconnect error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 export default router;
