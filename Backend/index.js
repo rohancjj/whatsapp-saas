@@ -24,6 +24,7 @@ import {
   shutdownAdminWhatsApp,
   getAdminConnectionStatus 
 } from "./services/adminWhatsapp.js";
+import { decodeBase64 } from "bcryptjs";
 
 dotenv.config();
 

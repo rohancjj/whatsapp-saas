@@ -14,6 +14,10 @@ import {
   Tab,
   Tooltip,
   Paper,
+  Dialog, // Added Dialog for the warning pop-up
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import axios from "axios";
 import { io } from "socket.io-client";
@@ -44,6 +48,9 @@ const UserDashboard = () => {
   const [apiKey, setApiKey] = useState(null);
   const [phoneNumber, setPhoneNumber] = useState(null);
   const [loadingApiKey, setLoadingApiKey] = useState(false);
+
+  // New state for the disconnect warning dialog
+  const [showDisconnectWarning, setShowDisconnectWarning] = useState(false); 
 
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -125,9 +132,14 @@ const UserDashboard = () => {
     }
   };
 
-  // 🔴 Disconnect function added
+  // Function called when 'Disconnect' button is initially clicked
+  const handleOpenDisconnectWarning = () => {
+    setShowDisconnectWarning(true);
+  };
+  
+  // 🔴 Disconnect function (now called from the warning dialog)
   const handleDisconnect = async () => {
-    if (!window.confirm("Are you sure you want to disconnect WhatsApp?")) return;
+    setShowDisconnectWarning(false); // Close the dialog immediately
 
     try {
       const token = localStorage.getItem("token");
@@ -239,7 +251,7 @@ const UserDashboard = () => {
                   variant="contained" 
                   color="error" 
                   sx={{ mt: 2 }} 
-                  onClick={handleDisconnect}
+                  onClick={handleOpenDisconnectWarning} // Now opens the warning dialog
                 >
                   Disconnect
                 </Button>
@@ -300,6 +312,38 @@ const UserDashboard = () => {
           )}
         </Card>
       </TabPanel>
+      
+      {/* 🛑 DISCONNECT WARNING DIALOG (New Card/Pop-up) */}
+      <Dialog
+        open={showDisconnectWarning}
+        onClose={() => setShowDisconnectWarning(false)}
+        aria-labelledby="disconnect-dialog-title"
+        aria-describedby="disconnect-dialog-description"
+        PaperProps={{
+            sx: { borderRadius: 4, p: 1 }
+        }}
+      >
+        <DialogTitle id="disconnect-dialog-title" sx={{ color: 'red', fontWeight: 700 }}>
+            ⚠️ Confirm Disconnect
+        </DialogTitle>
+        <DialogContent dividers>
+            <Typography id="disconnect-dialog-description">
+                Are you absolutely sure you want to disconnect your WhatsApp account?
+            </Typography>
+            <Typography sx={{ mt: 2, color: 'red', fontWeight: 600 }}>
+                This will immediately stop all automated messaging and API functionality.
+            </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowDisconnectWarning(false)} variant="outlined">
+            Cancel
+          </Button>
+          <Button onClick={handleDisconnect} color="error" variant="contained" autoFocus>
+            Disconnect Now
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {/* ---------------------------------------------------- */}
 
       {/* Snackbar */}
       <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
