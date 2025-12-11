@@ -17,6 +17,8 @@ import paymentRoutes from "./routes/paymentRoutes.js";
 import notificationTemplateRoutes from "./routes/notificationTemplatesroutes.js";
 import notificationsRoutes from "./routes/notificationsroutes.js";
 import supportRoutes from "./routes/supportRoutes.js";
+import otpRoutes from "./routes/otpRoutes.js";
+
 
 // ❌ Removed invalid import:
 // import { upload } from "./middlewares/upload.js";
@@ -120,6 +122,7 @@ app.use("/api/v1", paymentRoutes);
 app.use("/api/notification-templates", notificationTemplateRoutes);
 app.use("/api/notifications", notificationsRoutes);
 app.use("/api/v1/support", supportRoutes);
+app.use("/api/v1/otp", otpRoutes);
 
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 

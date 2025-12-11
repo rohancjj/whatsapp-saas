@@ -4,59 +4,48 @@ import jwt from "jsonwebtoken";
 import { Notifications } from "../services/sendNotification.js";
 import { cleanPhone } from "../utils/phoneUtils.js";
 import { SYSTEM_EVENTS } from "../constants/systemEvents.js";
+import Otp from "../models/Otp.js";
 
 export const signup = async (req, res) => {
   try {
     const { fullName, email, password, phone, usageReason } = req.body;
 
-    const exists = await User.findOne({ email });
-    if (exists) {
-      return res.status(400).json({ message: "Email already in use" });
+    // 1. Check OTP before signup
+    const latestOtp = await Otp.findOne({ phone }).sort({ createdAt: -1 });
+
+    if (!latestOtp || !latestOtp.verified || !latestOtp.usedInSignup) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP not verified. Please verify OTP before signup."
+      });
     }
 
-    const hash = await bcrypt.hash(password, 10);
-    const cleanedPhone = cleanPhone(phone);
+    // 2. Continue Signup
+    const existing = await User.findOne({ email });
+    if (existing) {
+      return res.status(400).json({ success: false, message: "Email already exists" });
+    }
 
     const user = await User.create({
       fullName,
       email,
-      password: hash,
-      phone: cleanedPhone,
-      usageReason,
-      lastLogin: null,
+      password,
+      phone,
+      usageReason
     });
 
-    
-    const userNotification = await Notifications.sendSystemTemplate(
-      user._id, 
-      SYSTEM_EVENTS.USER_SIGNUP, 
-      { name: fullName, email, phone: cleanedPhone }
-    );
-    
-    if (!userNotification.success) {
-      console.error("Failed to send user signup notification:", userNotification.error);
-    }
+    // 3. Consume OTP (one-time-use)
+    latestOtp.usedInSignup = false;
+    await latestOtp.save();
 
-
-    const adminNotification = await Notifications.sendSystemTemplateToAdmin(
-      SYSTEM_EVENTS.ADMIN_NEW_USER,
-      { name: fullName, email, phone: cleanedPhone }
-    );
-    
-    if (!adminNotification.success) {
-      console.error("Failed to notify admin of new user:", adminNotification.error);
-    }
-
-    return res.json({
-      message: "Account created successfully.",
-      userId: user._id,
-    });
+    res.json({ success: true, message: "Signup successful", user });
 
   } catch (err) {
     console.error("Signup error:", err);
-    res.status(500).json({ message: "Signup error", error: err.message });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
 
 export const login = async (req, res) => {
   try {
