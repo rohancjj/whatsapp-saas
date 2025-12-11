@@ -1,0 +1,385 @@
+[dotenv@17.2.3] injecting env (4) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+🚀 Server running on port 8080
+🚀 Starting Admin WhatsApp initialization...
+📂 Found existing session
+🔌 Client connected: QRZXU11WykDN_s1DAAAB
+📦 Using Baileys version: [ 2, 3000, 1027934701 ]
+👑 Admin WhatsApp initialized successfully
+🔄 Admin Connection Update: {
+  connection: 'connecting',
+  qr: 'NO',
+  isNewLogin: undefined,
+  hasUser: true,
+  userId: '918107171472'
+}
+🔄 Admin WA connecting...
+✅ Reconnecting with existing session: 918107171472
+Database connected ✔️
+🔄 Admin Connection Update: {
+  connection: 'close',
+  qr: 'NO',
+  isNewLogin: undefined,
+  hasUser: true,
+  userId: '918107171472'
+}
+❌ Admin Disconnected - Status Code: 401
+📋 Error details: Connection Failure
+📡 Emitted: admin_disconnected to all clients
+🗑️ Admin logged out → Clearing session
+♻️ Loading all active WhatsApp sessions...
+📡 Emitted: admin_connected to all clients
+📊 Found 0 active sessions to restore
+✅ Session restoration complete
+🔍 Post-init check: Already connected: 918107171472
+📡 Emitted: admin_connected to all clients
+❌ Client disconnected: QRZXU11WykDN_s1DAAAB
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Admin middleware: Access granted { userId: '693907ce6557665c68a0634a', role: 'admin' }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Admin middleware: Access granted { userId: '693907ce6557665c68a0634a', role: 'admin' }
+❌ Admin WhatsApp not connected.
+Failed to notify admin of first login: Admin WhatsApp not connected
+🔑 Login successful - Token generated: {
+  userId: new ObjectId('69390dfb216efcb90f0ffe7c'),
+  email: 'sunny@gmail.com',
+  role: 'user',
+  isAdmin: false
+}
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+🔑 Fetching API key for user: 69390dfb216efcb90f0ffe7c
+🔌 Client connected: xHBGPWyx6ascJuZAAAAD
+🔌 Client connected: yD916HIQ7D5YbyNJAAAF
+✅ Found session for user 69390dfb216efcb90f0ffe7c: { connected: false, hasApiKey: true, phoneNumber: '918107171472' }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+🔑 Fetching API key for user: 69390dfb216efcb90f0ffe7c
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+✅ Found session for user 69390dfb216efcb90f0ffe7c: { connected: false, hasApiKey: true, phoneNumber: '918107171472' }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+🔑 Generated/Retrieved API key for user 69390dfb216efcb90f0ffe7c: wa_e710706d6289b7d3f...
+📷 Emitting QR code for user 69390dfb216efcb90f0ffe7c
+❌ Connection closed for user 69390dfb216efcb90f0ffe7c, code: 515
+🔄 Scheduling reconnect for user 69390dfb216efcb90f0ffe7c
+✅ WhatsApp connected for user 69390dfb216efcb90f0ffe7c, phone: 918263970154
+💾 Saved session for user 69390dfb216efcb90f0ffe7c with API key: wa_e710706d6289b7d3f...
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+🔑 Fetching API key for user: 69390dfb216efcb90f0ffe7c
+✅ Found session for user 69390dfb216efcb90f0ffe7c: { connected: true, hasApiKey: true, phoneNumber: '918263970154' }
+Closing session: SessionEntry {
+  _chains: {
+    'Bc1rBkYnDnMNbrgZLOQMxxezLD5UjXR/LxTft9MG9xR0': { chainKey: [Object], chainType: 2, messageKeys: {} },
+    'BYDCLYppzDVWUsj5mEh+MHxVvWTnlV79jr5I7+qxtNl1': { chainKey: [Object], chainType: 1, messageKeys: {} }
+  },
+  registrationId: 468044939,
+  currentRatchet: {
+    ephemeralKeyPair: {
+      pubKey: <Buffer 05 80 c2 2d 8a 69 cc 35 56 52 c8 f9 98 48 7e 30 7c 55 bd 64 e7 95 5e fd 8e be 48 ef ea b1 b4 d9 75>,
+      privKey: <Buffer 28 5e 22 cb 7a b6 af 51 5a 3d da 1e c8 06 c4 34 88 b7 d5 13 2d 43 b3 f5 98 b3 9c f8 f0 22 9d 42>
+    },
+    lastRemoteEphemeralKey: <Buffer 05 cd 6b 06 46 27 0e 73 0d 6e b8 19 2c e4 0c c7 17 b3 2c 3e 54 8d 74 7f 2f 14 df b7 d3 06 f7 14 74>,
+    previousCounter: 0,
+    rootKey: <Buffer 29 c0 24 ce 52 45 98 06 42 d9 33 94 3c 8f 71 55 d8 e9 08 b1 da 87 63 b3 39 33 81 33 09 f7 12 63>
+  },
+  indexInfo: {
+    baseKey: <Buffer 05 bd 16 42 02 8f 66 17 0b 90 ca 12 e9 d9 e4 bd e8 92 04 ab bb ce 6f 45 89 f8 45 dc 7b 2a b9 d5 45>,
+    baseKeyType: 2,
+    closed: -1,
+    used: 1765436112415,
+    created: 1765436112415,
+    remoteIdentityKey: <Buffer 05 6a 84 d6 c0 6d 71 20 88 65 40 61 05 ab f4 ef a7 ba 4f 14 2b 64 37 34 ce 61 d9 a5 da 2d 6a 78 45>
+  }
+}
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+❌ Admin middleware: Access denied { userId: '69390dfb216efcb90f0ffe7c', role: 'user', expected: 'admin' }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+❌ Admin middleware: Access denied { userId: '69390dfb216efcb90f0ffe7c', role: 'user', expected: 'admin' }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+❌ Admin middleware: Access denied { userId: '69390dfb216efcb90f0ffe7c', role: 'user', expected: 'admin' }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+❌ Admin middleware: Access denied { userId: '69390dfb216efcb90f0ffe7c', role: 'user', expected: 'admin' }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+❌ Admin middleware: Access denied { userId: '69390dfb216efcb90f0ffe7c', role: 'user', expected: 'admin' }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+❌ Admin middleware: Access denied { userId: '69390dfb216efcb90f0ffe7c', role: 'user', expected: 'admin' }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+🔌 Client connected: F1_JgAKvO8IFCBxhAAAI
+❌ Client disconnected: F1_JgAKvO8IFCBxhAAAI
+❌ Admin WhatsApp not connected.
+Failed to notify admin of first login: Admin WhatsApp not connected
+🔑 Login successful - Token generated: {
+  userId: new ObjectId('693907ce6557665c68a0634a'),
+  email: 'admin@gmail.com',
+  role: 'admin',
+  isAdmin: true
+}
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+🔌 Client connected: OTL0d7lF6i3UE5TuAAAL
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+❌ Client disconnected: OTL0d7lF6i3UE5TuAAAL
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Admin middleware: Access granted { userId: '693907ce6557665c68a0634a', role: 'admin' }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Admin middleware: Access granted { userId: '693907ce6557665c68a0634a', role: 'admin' }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Admin middleware: Access granted { userId: '693907ce6557665c68a0634a', role: 'admin' }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Admin middleware: Access granted { userId: '693907ce6557665c68a0634a', role: 'admin' }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Admin middleware: Access granted { userId: '693907ce6557665c68a0634a', role: 'admin' }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Admin middleware: Access granted { userId: '693907ce6557665c68a0634a', role: 'admin' }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+🔌 Client connected: UzbollWYcxNE8LDeAAAO
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+❌ Client disconnected: UzbollWYcxNE8LDeAAAO
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Admin middleware: Access granted { userId: '693907ce6557665c68a0634a', role: 'admin' }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Admin middleware: Access granted { userId: '693907ce6557665c68a0634a', role: 'admin' }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Admin middleware: Access granted { userId: '693907ce6557665c68a0634a', role: 'admin' }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Admin middleware: Access granted { userId: '693907ce6557665c68a0634a', role: 'admin' }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Admin middleware: Access granted { userId: '693907ce6557665c68a0634a', role: 'admin' }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Admin middleware: Access granted { userId: '693907ce6557665c68a0634a', role: 'admin' }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+🔌 Client connected: YUJY0C5Vll6T8ov8AAAR
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+❌ Client disconnected: YUJY0C5Vll6T8ov8AAAR
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+🔌 Client connected: 3wOPPMIvGPrYdyT-AAAU
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+❌ Client disconnected: 3wOPPMIvGPrYdyT-AAAU
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+🔌 Client connected: 78ODFdndB12NUInZAAAX
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+❌ Client disconnected: 78ODFdndB12NUInZAAAX
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+🔌 Client connected: ZY5bbJoawILUhtRkAAAa
+❌ Client disconnected: ZY5bbJoawILUhtRkAAAa
+🔌 Client connected: TDqnfsaX9w0KqNPpAAAc
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+❌ Client disconnected: TDqnfsaX9w0KqNPpAAAc
+❌ Admin WhatsApp not connected.
+Failed to notify admin of first login: Admin WhatsApp not connected
+🔑 Login successful - Token generated: {
+  userId: new ObjectId('693907ce6557665c68a0634a'),
+  email: 'admin@gmail.com',
+  role: 'admin',
+  isAdmin: true
+}
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+🔌 Client connected: CiaSAuQxMb2rTcjDAAAf
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+❌ Client disconnected: CiaSAuQxMb2rTcjDAAAf
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+🔌 Client connected: uPwmpESVSHSHkCiBAAAi
+❌ Client disconnected: uPwmpESVSHSHkCiBAAAi
+🔌 Client connected: jz8lZEyCgdp45X0EAAAk
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+❌ Client disconnected: jz8lZEyCgdp45X0EAAAk
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+🔌 Client connected: cuXyn_8ALt2h8sCCAAAn
+❌ Client disconnected: cuXyn_8ALt2h8sCCAAAn
+🔌 Client connected: Laz2rQ1IwHJQF-uCAAAp
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+❌ Client disconnected: Laz2rQ1IwHJQF-uCAAAp
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+🔌 Client connected: 1hcEkEjZZO9NcHj2AAAs
+❌ Client disconnected: 1hcEkEjZZO9NcHj2AAAs
+🔌 Client connected: 1Me4E2OIbNN0KWXKAAAu
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+❌ Client disconnected: 1Me4E2OIbNN0KWXKAAAu
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+🔌 Client connected: U-9JM8U955bTVDopAAAx
+❌ Client disconnected: U-9JM8U955bTVDopAAAx
+🔌 Client connected: I737c_8P_nHKnACAAAAz
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+❌ Client disconnected: I737c_8P_nHKnACAAAAz
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+🔌 Client connected: sowMbKA2JeBp6jz1AAA2
+✅ Auth middleware - User: { id: '693907ce6557665c68a0634a', role: 'admin', isAdmin: true }
+❌ Client disconnected: sowMbKA2JeBp6jz1AAA2
+❌ Admin WhatsApp not connected.
+Failed to notify admin of first login: Admin WhatsApp not connected
+🔑 Login successful - Token generated: {
+  userId: new ObjectId('693959bf1bf5b3d00ff18d27'),
+  email: 'skhan24463@gmail.com',
+  role: 'user',
+  isAdmin: false
+}
+✅ Auth middleware - User: { id: '693959bf1bf5b3d00ff18d27', role: 'user', isAdmin: false }
+✅ Auth middleware - User: { id: '693959bf1bf5b3d00ff18d27', role: 'user', isAdmin: false }
+🔑 Fetching API key for user: 693959bf1bf5b3d00ff18d27
+🔌 Client connected: Hp5NtxAWznIf_qOZAAA4
+🔌 Client connected: snqwp62CCXn5kc-zAAA6
+⚠️ No session found for user 693959bf1bf5b3d00ff18d27
+✅ Auth middleware - User: { id: '693959bf1bf5b3d00ff18d27', role: 'user', isAdmin: false }
+🔑 Fetching API key for user: 693959bf1bf5b3d00ff18d27
+✅ Auth middleware - User: { id: '693959bf1bf5b3d00ff18d27', role: 'user', isAdmin: false }
+⚠️ No session found for user 693959bf1bf5b3d00ff18d27
+✅ Auth middleware - User: { id: '693959bf1bf5b3d00ff18d27', role: 'user', isAdmin: false }
+🔑 Generated/Retrieved API key for user 693959bf1bf5b3d00ff18d27: wa_f3632ed2fd6161061...
+📷 Emitting QR code for user 693959bf1bf5b3d00ff18d27
+❌ Connection closed for user 693959bf1bf5b3d00ff18d27, code: 515
+🔄 Scheduling reconnect for user 693959bf1bf5b3d00ff18d27
+✅ WhatsApp connected for user 693959bf1bf5b3d00ff18d27, phone: 918107171472
+💾 Saved session for user 693959bf1bf5b3d00ff18d27 with API key: wa_f3632ed2fd6161061...
+✅ Auth middleware - User: { id: '693959bf1bf5b3d00ff18d27', role: 'user', isAdmin: false }
+🔑 Fetching API key for user: 693959bf1bf5b3d00ff18d27
+✅ Found session for user 693959bf1bf5b3d00ff18d27: { connected: true, hasApiKey: true, phoneNumber: '918107171472' }
+Closing session: SessionEntry {
+  _chains: {
+    'BUxC94NeHdV6WSpYNoq3acH6QCqkprv07QTNAEH/Vm4P': { chainKey: [Object], chainType: 2, messageKeys: {} },
+    'BbKarT/HGEkVbw7HfmsVEk7nEnKuYLE0pLEwXlLujrcc': { chainKey: [Object], chainType: 1, messageKeys: {} }
+  },
+  registrationId: 1874651246,
+  currentRatchet: {
+    ephemeralKeyPair: {
+      pubKey: <Buffer 05 b2 9a ad 3f c7 18 49 15 6f 0e c7 7e 6b 15 12 4e e7 12 72 ae 60 b1 34 a4 b1 30 5e 52 ee 8e b7 1c>,
+      privKey: <Buffer d8 fa f8 60 03 00 d6 b8 74 4f 58 fa 9c e3 e1 bf b2 39 43 de 15 e9 e3 df 3e ce b9 d5 f8 73 19 75>
+    },
+    lastRemoteEphemeralKey: <Buffer 05 4c 42 f7 83 5e 1d d5 7a 59 2a 58 36 8a b7 69 c1 fa 40 2a a4 a6 bb f4 ed 04 cd 00 41 ff 56 6e 0f>,
+    previousCounter: 0,
+    rootKey: <Buffer f3 21 1b 03 28 52 5b db 05 14 27 43 9d 5b 22 ed 34 ad b3 7d a0 c7 f4 59 88 15 15 92 24 61 a5 a7>
+  },
+  indexInfo: {
+    baseKey: <Buffer 05 dd f6 47 34 7b 27 f7 20 cc 0c 65 ba 51 bc be db e0 56 36 61 ba 4a df c4 32 d6 96 e4 95 f9 00 3a>,
+    baseKeyType: 2,
+    closed: -1,
+    used: 1765436578797,
+    created: 1765436578797,
+    remoteIdentityKey: <Buffer 05 a6 ae a8 39 f8 22 86 25 e8 76 14 85 d1 4e 22 f4 9a 3b ae 90 37 c2 db 14 05 71 54 0d 79 be 72 43>
+  }
+}
+Closing session: SessionEntry {
+  _chains: {
+    'BS813E5TEWqWNh+Yx0tRVpzGi8cfni0axQQ+BVIx6x47': { chainKey: [Object], chainType: 1, messageKeys: {} }
+  },
+  registrationId: 352168840,
+  currentRatchet: {
+    ephemeralKeyPair: {
+      pubKey: <Buffer 05 2f 35 dc 4e 53 11 6a 96 36 1f 98 c7 4b 51 56 9c c6 8b c7 1f 9e 2d 1a c5 04 3e 05 52 31 eb 1e 3b>,
+      privKey: <Buffer f8 b3 6f 6d ad 11 3b 9f 47 dc b4 28 c0 cc 98 bd 23 92 24 40 2d 69 5f 44 05 09 f4 9b ad 47 db 6e>
+    },
+    lastRemoteEphemeralKey: <Buffer 05 74 7c 71 41 25 eb 53 7a 32 28 fb 0f 6f 29 20 99 a7 38 d5 63 80 dc 68 1e 60 93 6f 21 22 24 a0 2f>,
+    previousCounter: 0,
+    rootKey: <Buffer c4 ec 39 1a 8f c6 ab 51 9d 9d 1e ba 9d 60 a9 8f 35 db dc 7b 75 a1 b8 98 61 12 aa 58 a9 53 7e 4d>
+  },
+  indexInfo: {
+    baseKey: <Buffer 05 59 a5 82 d1 66 58 59 b3 c9 b7 87 4a 05 ef ea 89 8d ab 4d 44 24 18 1e f4 e3 f1 a1 32 93 58 a5 7f>,
+    baseKeyType: 1,
+    closed: -1,
+    used: 1765436622223,
+    created: 1765436622223,
+    remoteIdentityKey: <Buffer 05 10 69 78 03 97 33 7e 7b 91 3e e7 d8 ce 79 fc ac c0 d8 ea 89 71 c8 41 72 fa d4 a9 c9 85 db 04 48>
+  },
+  pendingPreKey: {
+    signedKeyId: 1,
+    baseKey: <Buffer 05 59 a5 82 d1 66 58 59 b3 c9 b7 87 4a 05 ef ea 89 8d ab 4d 44 24 18 1e f4 e3 f1 a1 32 93 58 a5 7f>,
+    preKeyId: 12
+  }
+}
+❌ Client disconnected: yD916HIQ7D5YbyNJAAAF
+❌ Client disconnected: xHBGPWyx6ascJuZAAAAD
+❌ Admin WhatsApp not connected.
+Failed to notify admin of first login: Admin WhatsApp not connected
+🔑 Login successful - Token generated: {
+  userId: new ObjectId('69390dfb216efcb90f0ffe7c'),
+  email: 'sunny@gmail.com',
+  role: 'user',
+  isAdmin: false
+}
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+🔑 Fetching API key for user: 69390dfb216efcb90f0ffe7c
+🔌 Client connected: J1Yf6djdCxpHPenXAAA8
+🔌 Client connected: H8WrXx-I9yF4g1USAAA-
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+✅ Found session for user 69390dfb216efcb90f0ffe7c: { connected: true, hasApiKey: true, phoneNumber: '918263970154' }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+🔑 Fetching API key for user: 69390dfb216efcb90f0ffe7c
+✅ Found session for user 69390dfb216efcb90f0ffe7c: { connected: true, hasApiKey: true, phoneNumber: '918263970154' }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+🔑 Fetching API key for user: 69390dfb216efcb90f0ffe7c
+✅ Found session for user 69390dfb216efcb90f0ffe7c: { connected: true, hasApiKey: true, phoneNumber: '918263970154' }
+✅ Auth middleware - User: { id: '69390dfb216efcb90f0ffe7c', role: 'user', isAdmin: false }
+🔑 Fetching API key for user: 69390dfb216efcb90f0ffe7c
+✅ Found session for user 69390dfb216efcb90f0ffe7c: { connected: true, hasApiKey: true, phoneNumber: '918263970154' }
+Closing session: SessionEntry {
+  _chains: {
+    'BauTB3+tPZ3au4m1V0vIQVhFBS25b7BgOmX43Kyd35Bj': { chainKey: [Object], chainType: 2, messageKeys: {} },
+    Bd7USwnyqJhxOIRAQ4LIQQ2yN1UASoUFEUOkYBLYiwsL: { chainKey: [Object], chainType: 1, messageKeys: {} }
+  },
+  registrationId: 468044939,
+  currentRatchet: {
+    ephemeralKeyPair: {
+      pubKey: <Buffer 05 de d4 4b 09 f2 a8 98 71 38 84 40 43 82 c8 41 0d b2 37 55 00 4a 85 05 11 43 a4 60 12 d8 8b 0b 0b>,
+      privKey: <Buffer b0 89 1b 77 d2 07 f2 92 da 04 c9 62 94 d9 f9 4b 37 b5 b1 7a fc 58 fe 41 44 75 c7 4b 7a e6 53 66>
+    },
+    lastRemoteEphemeralKey: <Buffer 05 ab 93 07 7f ad 3d 9d da bb 89 b5 57 4b c8 41 58 45 05 2d b9 6f b0 60 3a 65 f8 dc ac 9d df 90 63>,
+    previousCounter: 1,
+    rootKey: <Buffer 45 1a 5e 99 c9 18 74 27 2b 33 30 b5 96 5d 22 fd 58 a9 24 cc 2a dc cf 18 cb 52 50 01 06 e2 88 3e>
+  },
+  indexInfo: {
+    baseKey: <Buffer 05 9f b6 0e bd 40 c8 c4 10 97 d7 29 20 78 b2 eb c8 ad 9a 43 02 f1 a2 d8 6f fd 77 40 cb 3a d9 48 5c>,
+    baseKeyType: 1,
+    closed: -1,
+    used: 1765436613963,
+    created: 1765436190622,
+    remoteIdentityKey: <Buffer 05 6a 84 d6 c0 6d 71 20 88 65 40 61 05 ab f4 ef a7 ba 4f 14 2b 64 37 34 ce 61 d9 a5 da 2d 6a 78 45>
+  }
+}
+Closing session: SessionEntry {
+  _chains: {
+    'BTQMVq4OFGo+ykP29JFkmBlXtMLQ1T6PFg4m+gEWW8EV': { chainKey: [Object], chainType: 1, messageKeys: {} }
+  },
+  registrationId: 1874651246,
+  currentRatchet: {
+    ephemeralKeyPair: {
+      pubKey: <Buffer 05 34 0c 56 ae 0e 14 6a 3e ca 43 f6 f4 91 64 98 19 57 b4 c2 d0 d5 3e 8f 16 0e 26 fa 01 16 5b c1 15>,
+      privKey: <Buffer e8 70 59 20 18 e9 18 9c 4a f1 e2 1d d6 9e 36 aa c1 14 f9 bf 19 4d 1a 1f 85 59 39 65 6a 45 5b 58>
+    },
+    lastRemoteEphemeralKey: <Buffer 05 00 b3 17 8f da 3f 20 1c 04 40 52 f1 b8 23 da c5 e4 5e af a0 14 f2 7c 82 62 b4 3d a1 93 45 73 0c>,
+    previousCounter: 0,
+    rootKey: <Buffer f8 6d 61 52 9a 25 04 22 c6 33 8c 10 86 f4 ea 28 0c e8 47 93 6b 8e 0e 68 2a e7 ce ca 87 21 29 d3>
+  },
+  indexInfo: {
+    baseKey: <Buffer 05 2a 3a 77 e0 db e6 3e c5 c5 96 5e 39 15 18 fe f1 25 5e 9b d7 96 f1 ca 63 88 28 6a 31 d7 97 26 01>,
+    baseKeyType: 1,
+    closed: -1,
+    used: 1765436190621,
+    created: 1765436190621,
+    remoteIdentityKey: <Buffer 05 a6 ae a8 39 f8 22 86 25 e8 76 14 85 d1 4e 22 f4 9a 3b ae 90 37 c2 db 14 05 71 54 0d 79 be 72 43>
+  },
+  pendingPreKey: {
+    signedKeyId: 26,
+    baseKey: <Buffer 05 2a 3a 77 e0 db e6 3e c5 c5 96 5e 39 15 18 fe f1 25 5e 9b d7 96 f1 ca 63 88 28 6a 31 d7 97 26 01>,
+    preKeyId: 10158281
+  }
+}
+❌ Client disconnected: Hp5NtxAWznIf_qOZAAA4
+❌ Client disconnected: snqwp62CCXn5kc-zAAA6
+❌ Client disconnected: J1Yf6djdCxpHPenXAAA8
+❌ Client disconnected: H8WrXx-I9yF4g1USAAA-
+SIGINT received. Shutting down...
+🛑 Shutting down Admin WhatsApp...
+Admin session preserved for next startup

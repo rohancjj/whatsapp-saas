@@ -1,7 +1,7 @@
 // controllers/supportController.js
 import SupportRequest from "../models/SupportRequest.js";
 import SupportMessage from "../models/SupportMessage.js";
-import User from "../models/User.js"; // for lookup / notifications
+import User from "../models/User.js";
 
 // helper to build absolute URL for uploaded file
 const buildFileUrl = (req, filename) => {
@@ -43,8 +43,15 @@ export const createSupportRequest = async (req, res) => {
       });
     }
 
-    // TODO: notify admin(s) via Notifications or socket
-    // e.g., Notifications.sendToAdmin(`New support request: ${subject}`);
+    // Emit socket event to notify admins
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('new_support_request', { 
+        requestId: reqDoc._id,
+        subject: reqDoc.subject,
+        userId 
+      });
+    }
 
     res.json({ success: true, request: reqDoc });
   } catch (err) {
@@ -64,28 +71,35 @@ export const listUserRequests = async (req, res) => {
     res.json({ success: true, requests });
   } catch (err) {
     console.error("listUserRequests:", err);
-    res.status(500).json({ success: false });
+    res.status(500).json({ success: false, message: "Failed to load requests" });
   }
 };
 
-// --- User: get request and messages
+// --- User/Admin: get request and messages
 export const getRequest = async (req, res) => {
   try {
     const userId = req.user.id;
+    const isAdmin = req.user.isAdmin === true;
     const { id } = req.params;
 
     const request = await SupportRequest.findById(id).lean();
-    if (!request) return res.status(404).json({ message: "Not found" });
-    if (request.userId.toString() !== userId && !req.user.isAdmin) {
+    if (!request) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    // Check permissions: user must own request OR be admin
+    if (request.userId.toString() !== userId && !isAdmin) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    const messages = await SupportMessage.find({ requestId: id }).sort({ createdAt: 1 }).lean();
+    const messages = await SupportMessage.find({ requestId: id })
+      .sort({ createdAt: 1 })
+      .lean();
 
     res.json({ success: true, request, messages });
   } catch (err) {
     console.error("getRequest:", err);
-    res.status(500).json({ success: false });
+    res.status(500).json({ success: false, message: "Failed to load request" });
   }
 };
 
@@ -93,44 +107,77 @@ export const getRequest = async (req, res) => {
 export const addMessage = async (req, res) => {
   try {
     const userId = req.user.id;
-    const isAdmin = !!req.user.isAdmin;
+    const isAdmin = req.user.isAdmin === true;
     const { requestId } = req.params;
     const { text } = req.body;
 
-    const request = await SupportRequest.findById(requestId);
-    if (!request) return res.status(404).json({ message: "Request not found" });
+    if (!text || text.trim() === "") {
+      return res.status(400).json({ message: "Message text is required" });
+    }
 
-    // permission: user must own the request unless admin
+    const request = await SupportRequest.findById(requestId);
+    if (!request) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    // Permission check: user must own the request unless admin
     if (!isAdmin && request.userId.toString() !== userId) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
     const attachments = [];
     if (req.files && req.files.length) {
-      for (const f of req.files) attachments.push(buildFileUrl(req, f.filename));
+      for (const f of req.files) {
+        attachments.push(buildFileUrl(req, f.filename));
+      }
     }
 
     const msg = await SupportMessage.create({
       requestId,
       senderId: userId,
       senderRole: isAdmin ? "admin" : "user",
-      text: text || "",
+      text: text.trim(),
       attachments,
     });
 
-    // Update request status & updatedAt
-    request.status = isAdmin ? "pending" : "open";
+    // Update request status & assign admin if needed
+    if (isAdmin) {
+      request.status = "pending";
+      if (!request.assignedTo) {
+        request.assignedTo = userId;
+      }
+    } else {
+      // User replied, set to open if it was closed
+      if (request.status === "closed") {
+        request.status = "open";
+      }
+    }
+    
     request.updatedAt = new Date();
-    if (isAdmin && !request.assignedTo) request.assignedTo = userId;
     await request.save();
 
-    // Emit socket event to notify the other side (implementation below)
-    // req.app.get('io')?.to(<room>).emit('support_update', { requestId, msg });
+    // Emit socket event
+    const io = req.app.get('io');
+    if (io) {
+      // Notify the user if admin replied
+      if (isAdmin) {
+        io.to(request.userId.toString()).emit('support_reply', {
+          requestId,
+          message: msg
+        });
+      } else {
+        // Notify admins if user replied
+        io.emit('support_user_reply', {
+          requestId,
+          message: msg
+        });
+      }
+    }
 
     res.json({ success: true, message: msg });
   } catch (err) {
     console.error("addMessage:", err);
-    res.status(500).json({ success: false });
+    res.status(500).json({ success: false, message: "Failed to send message" });
   }
 };
 
@@ -139,15 +186,21 @@ export const adminListRequests = async (req, res) => {
   try {
     const { status, priority, assignedTo } = req.query;
     const q = {};
+    
     if (status) q.status = status;
     if (priority) q.priority = priority;
     if (assignedTo) q.assignedTo = assignedTo;
 
-    const requests = await SupportRequest.find(q).sort({ updatedAt: -1 }).lean();
+    const requests = await SupportRequest.find(q)
+      .populate('userId', 'name email')
+      .populate('assignedTo', 'name email')
+      .sort({ updatedAt: -1 })
+      .lean();
+
     res.json({ success: true, requests });
   } catch (err) {
     console.error("adminListRequests:", err);
-    res.status(500).json({ success: false });
+    res.status(500).json({ success: false, message: "Failed to load requests" });
   }
 };
 
@@ -156,24 +209,39 @@ export const adminUpdateStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
+    
     if (!["open", "pending", "resolved", "closed"].includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
 
     const reqDoc = await SupportRequest.findById(id);
-    if (!reqDoc) return res.status(404).json({ message: "Not found" });
+    if (!reqDoc) {
+      return res.status(404).json({ message: "Request not found" });
+    }
 
     reqDoc.status = status;
     reqDoc.updatedAt = new Date();
+    
+    // Assign to current admin if resolving/closing
+    if ((status === "resolved" || status === "closed") && !reqDoc.assignedTo) {
+      reqDoc.assignedTo = req.user.id;
+    }
+    
     await reqDoc.save();
 
-    // Optionally notify user
-    // Notifications.sendToUser(reqDoc.userId, `Your support request ${reqDoc.subject} is now ${status}`);
+    // Emit socket event to notify user
+    const io = req.app.get('io');
+    if (io) {
+      io.to(reqDoc.userId.toString()).emit('support_status_update', {
+        requestId: reqDoc._id,
+        status: reqDoc.status
+      });
+    }
 
     res.json({ success: true, request: reqDoc });
   } catch (err) {
     console.error("adminUpdateStatus:", err);
-    res.status(500).json({ success: false });
+    res.status(500).json({ success: false, message: "Failed to update status" });
   }
 };
 
@@ -182,8 +250,11 @@ export const adminAssign = async (req, res) => {
   try {
     const adminId = req.user.id;
     const { id } = req.params;
+    
     const doc = await SupportRequest.findById(id);
-    if (!doc) return res.status(404).json({ message: "Not found" });
+    if (!doc) {
+      return res.status(404).json({ message: "Request not found" });
+    }
 
     doc.assignedTo = adminId;
     doc.updatedAt = new Date();
@@ -192,6 +263,6 @@ export const adminAssign = async (req, res) => {
     res.json({ success: true, request: doc });
   } catch (err) {
     console.error("adminAssign:", err);
-    res.status(500).json({ success: false });
+    res.status(500).json({ success: false, message: "Failed to assign request" });
   }
-};
+}
