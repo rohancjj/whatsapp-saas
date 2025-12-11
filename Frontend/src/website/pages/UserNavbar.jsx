@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Wifi, Key, CreditCard, Settings, LogOut } from 'lucide-react';
+import { Home, Wifi, Key, CreditCard, Settings, LogOut, HelpCircle } from 'lucide-react';
 import { disconnectUserSocket } from './UserDashboard';
 
 const UserNavbar = () => {
@@ -11,19 +11,18 @@ const UserNavbar = () => {
     { label: "WhatsApp Connect", path: "/user/dashboard/whatsapp", icon: <Wifi size={20} /> },
     { label: "API Key", path: "/user/dashboard/api", icon: <Key size={20} /> },
     { label: "Billing", path: "/user/dashboard/billing", icon: <CreditCard size={20} /> },
+
+    // ⭐ NEW SUPPORT PAGE
+    { label: "Support", path: "/user/dashboard/support", icon: <HelpCircle size={20} /> },
+
     { label: "Settings", path: "/user/dashboard/settings", icon: <Settings size={20} /> },
   ];
 
   const handleLogout = () => {
-    // CRITICAL: Disconnect socket before clearing storage
     disconnectUserSocket();
-    
-    // Clear all user data
     localStorage.removeItem('token');
     localStorage.removeItem('role');
     localStorage.removeItem('user');
-    
-    // Redirect to auth page
     window.location.href = '/auth';
   };
 
@@ -42,9 +41,7 @@ const UserNavbar = () => {
               key={item.path}
               to={item.path}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition ${
-                isActive
-                  ? 'bg-black text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
+                isActive ? "bg-black text-white" : "text-gray-700 hover:bg-gray-100"
               }`}
             >
               {item.icon}

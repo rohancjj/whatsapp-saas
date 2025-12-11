@@ -10,8 +10,9 @@ import {
   LogOut,
   Menu,
   X,
+  Ticket,   // NEW ICON
+  MessagesSquare // NEW ICON
 } from "lucide-react";
-
 
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -67,6 +68,15 @@ const AdminLayout = () => {
         icon: <FileText size={20} />,
         path: "/admin/TemplateManager",
       },
+
+      /* ---------------- NEW SUPPORT MENU ---------------- */
+     {
+      name: "Support Requests",
+      icon: <Ticket size={20} />,
+      path: "/admin/support",
+    },
+
+     
     ],
     []
   );
@@ -90,6 +100,7 @@ const AdminLayout = () => {
         transition={{ type: "spring", stiffness: 120, damping: 20 }}
         className="hidden lg:flex bg-white border-r shadow-md flex-col"
       >
+        
         {/* LOGO */}
         <div className="p-4 border-b flex items-center gap-2">
           <img src="/icon.gif" alt="logo" className="w-8 h-8 rounded-md" />
@@ -99,7 +110,8 @@ const AdminLayout = () => {
         {/* MENU */}
         <nav className="flex-1 overflow-y-auto p-3">
           {menuItems.map((item) => {
-            const active = location.pathname === item.path;
+            const active = location.pathname.startsWith(item.path);
+
             return (
               <button
                 key={item.name}

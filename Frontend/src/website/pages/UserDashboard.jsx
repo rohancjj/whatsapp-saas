@@ -9,6 +9,7 @@ import DashboardOverview from './DashboardOverview';
 import WhatsAppConnect from './WhatsAppConnect';
 import APIKeyPage from './APIKeyPage';
 import BillingPage from './BillingPage';
+import UserSupportPage from './UserSupportPage';
 
 const getUserId = () => {
   const token = localStorage.getItem("token");
@@ -246,6 +247,10 @@ const UserDashboard = () => {
           <Route 
             path="/billing" 
             element={<BillingPage />} 
+          />
+          <Route 
+            path="/support" 
+            element={<UserSupportPage />} 
           />
         </Routes>
       </div>

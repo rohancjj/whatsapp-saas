@@ -7,16 +7,19 @@ import { fileURLToPath } from "url";
 import http from "http";
 import { Server } from "socket.io";
 import WhatsAppSession from "./models/WhatsAppSession.js";
+
 import whatsappRoutes from "./routes/whatsappRoutes.js";
 import authroutes from "./routes/authroutes.js";
 import pricingroutes from "./routes/pricingroutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
-import paymentRoutes from './routes/paymentRoutes.js'
-import notificationTemplateRoutes from './routes/notificationTemplatesroutes.js'
-import notificationsRoutes from './routes/notificationsroutes.js'
-import { upload } from "./middlewares/upload.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
+import notificationTemplateRoutes from "./routes/notificationTemplatesroutes.js";
+import notificationsRoutes from "./routes/notificationsroutes.js";
+import supportRoutes from "./routes/supportRoutes.js";
 
+// ❌ Removed invalid import:
+// import { upload } from "./middlewares/upload.js";
 
 import { loadAllSessionsOnStart } from "./services/whatsappManager.js";
 import { 
@@ -24,7 +27,6 @@ import {
   shutdownAdminWhatsApp,
   getAdminConnectionStatus 
 } from "./services/adminWhatsapp.js";
-import { decodeBase64 } from "bcryptjs";
 
 dotenv.config();
 
@@ -38,7 +40,6 @@ app.use(express.json());
 const PORT = process.env.PORT || 8080;
 const server = http.createServer(app);
 
-
 const io = new Server(server, { 
   cors: { origin: "*" },
   pingTimeout: 60000,
@@ -46,107 +47,69 @@ const io = new Server(server, {
   transports: ["websocket", "polling"]
 });
 
-
 app.set("io", io);
 
-
-
+// SOCKET.IO START
 io.on("connection", (socket) => {
   console.log("🔌 Client connected:", socket.id);
 
-  // Track which user this socket belongs to
   let currentUserId = null;
 
   const sendInitialStatus = () => {
     const adminStatus = getAdminConnectionStatus();
-    console.log("📡 Sending status to new client:", adminStatus);
     
-    if (adminStatus.connected && adminStatus.phone) {
+    if (adminStatus.connected) {
       socket.emit("admin_connected", { phoneNumber: adminStatus.phone });
       socket.emit("admin_qr", null);
-      console.log(`✅ Sent connected status to ${socket.id}: ${adminStatus.phone}`);
     } else {
       socket.emit("admin_disconnected");
-      console.log(`📤 Sent disconnected status to ${socket.id}`);
     }
   };
 
   setTimeout(sendInitialStatus, 500);
 
-  // Handle user joining their room
   socket.on("join", (userId) => {
     if (!userId) return;
-    
-    // Leave previous room if exists
+
     if (currentUserId && currentUserId !== userId) {
       socket.leave(currentUserId);
-      console.log(`📤 Socket ${socket.id} left room ${currentUserId}`);
     }
-    
-    // Join new room
+
     socket.join(userId);
     currentUserId = userId;
-    console.log(`📌 Socket ${socket.id} joined room ${userId}`);
-    
-    // Send current WhatsApp status for this user
+
     WhatsAppSession.findOne({ userId })
       .then(session => {
-        if (session && session.connected) {
-          socket.emit("whatsapp_connected", { 
-            phoneNumber: session.phoneNumber 
-          });
-          console.log(`✅ Sent WhatsApp status to ${userId}: connected`);
+        if (session?.connected) {
+          socket.emit("whatsapp_connected", { phoneNumber: session.phoneNumber });
         }
-      })
-      .catch(err => console.error("Error fetching session:", err));
+      });
   });
 
-  // Handle disconnection - DON'T close WhatsApp connection
-  socket.on("disconnect", (reason) => {
-    console.log(`❌ Client disconnected: ${socket.id}, reason: ${reason}`);
-    console.log(`⚠️ WhatsApp connection for user ${currentUserId} remains active`);
-    // Note: We do NOT disconnect WhatsApp here
-    // WhatsApp stays connected on the server side
-  });
-
-  // Optional: Add explicit logout event
-  socket.on("user_logout", async (userId) => {
-    console.log(`🚪 User ${userId} explicitly logged out`);
-    // Here you could optionally disconnect WhatsApp if desired
-    // But for your use case, keep it connected
+  socket.on("disconnect", () => {
+    console.log(`❌ Client disconnected: ${socket.id}`);
   });
 });
 
+// END SOCKET.IO
 
 connectDb();
 
 const initializeServices = async () => {
   try {
-
-    console.log("👑 Initializing Admin WhatsApp...");
     await initializeAdminWhatsApp(io);
-    
-    
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
-   
-    console.log("♻️ Restoring user WhatsApp sessions...");
     await loadAllSessionsOnStart(io);
-    
-    
+
     const adminStatus = getAdminConnectionStatus();
     if (adminStatus.connected) {
-      console.log("📢 Broadcasting admin connected status to all clients");
       io.emit("admin_connected", { phoneNumber: adminStatus.phone });
       io.emit("admin_qr", null);
     }
-    
-    console.log("✅ All services initialized successfully");
   } catch (err) {
-    console.error("❌ Service initialization error:", err);
+    console.error("❌ Initialization error:", err);
   }
 };
-
 
 app.use("/api/v1/whatsapp", whatsappRoutes);
 app.use("/auth", authroutes);
@@ -156,13 +119,13 @@ app.use("/admin", adminRoutes);
 app.use("/api/v1", paymentRoutes);
 app.use("/api/notification-templates", notificationTemplateRoutes);
 app.use("/api/notifications", notificationsRoutes);
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use("/api/v1/support", supportRoutes);
 
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 app.get("/", (req, res) => {
   res.send("WhatsApp SaaS Backend Running 🚀");
 });
-
 
 app.get("/health", (req, res) => {
   const adminStatus = getAdminConnectionStatus();
@@ -174,50 +137,24 @@ app.get("/health", (req, res) => {
   });
 });
 
-
 server.listen(PORT, async () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  
-
   await initializeServices();
 });
 
-
 const gracefulShutdown = async (signal) => {
-  console.log(`\n${signal} received. Starting graceful shutdown...`);
-  
+  console.log(`${signal} received. Shutting down...`);
+
   try {
-   
-    server.close(() => {
-      console.log("✅ HTTP server closed");
-    });
-    
-
+    server.close();
     await shutdownAdminWhatsApp();
-    
-
-    io.close(() => {
-      console.log("✅ Socket.IO closed");
-    });
-    
-    console.log("✅ Graceful shutdown completed");
+    io.close();
     process.exit(0);
   } catch (err) {
-    console.error("❌ Error during shutdown:", err);
+    console.error("Shutdown error:", err);
     process.exit(1);
   }
 };
 
-
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-
-
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
-});
-
-process.on("uncaughtException", (error) => {
-  console.error("❌ Uncaught Exception:", error);
-  gracefulShutdown("UNCAUGHT_EXCEPTION");
-});

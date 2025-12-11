@@ -23,7 +23,7 @@ import UserManagement from "./admin/UserManagement";
 import AdminPaymentSettings from "./admin/AdminPaymentSettings";
 import TemplateManager from "./admin/TemplateManager";
 import AdminPaymentDashboard from "./admin/AdminPaymentDashboard";
-
+import AdminSupportPage from "./admin/AdminSupportPage";
 import { Outlet } from "react-router-dom";
 
 export default function App() {
@@ -92,6 +92,7 @@ export default function App() {
             <Route path="AdminPaymentDashboard" element={<AdminPaymentDashboard />} />
             <Route path="PaymentSettings" element={<AdminPaymentSettings />} />
             <Route path="TemplateManager" element={<TemplateManager />} />
+            <Route path="support" element={<AdminSupportPage />} />
           </Route>
 
         </Routes>
