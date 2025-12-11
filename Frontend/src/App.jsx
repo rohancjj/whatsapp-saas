@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import LandingPage from "./website/pages/LandingPage";
 import NavBar from "./website/pages/NavBar";
 import WhatsAppApiDocs from "./website/pages/WhatsAppApiDocs";
+
 // AUTH
 import AuthPage from "./website/pages/AuthPage";
 
@@ -13,7 +14,6 @@ import UserDashboard from "./website/pages/UserDashboard";
 import ProtectedUser from "./routes/ProtectedUser";
 import PaymentPage from "./website/pages/PaymentPage";
 
-
 // ADMIN
 import ProtectedAdmin from "./routes/ProtectedAdmin";
 import AdminLayout from "./admin/layout/AdminLayout";
@@ -21,10 +21,8 @@ import AdminDashboard from "./admin/AdminDashboard";
 import AdminOffers from "./admin/AdminOffers";
 import UserManagement from "./admin/UserManagement";
 import AdminPaymentSettings from "./admin/AdminPaymentSettings";
-import TemplateManager from './admin/TemplateManager'
+import TemplateManager from "./admin/TemplateManager";
 import AdminPaymentDashboard from "./admin/AdminPaymentDashboard";
-
-
 
 import { Outlet } from "react-router-dom";
 
@@ -42,7 +40,7 @@ export default function App() {
               <>
                 <NavBar />
                 <LandingPage />
-                <WhatsAppApiDocs/>
+                <WhatsAppApiDocs />
               </>
             }
           />
@@ -66,11 +64,14 @@ export default function App() {
               </ProtectedUser>
             }
           >
+            {/* Pricing Page (without sidebar) */}
             <Route path="pricing" element={<Pricing />} />
-            <Route path="dashboard" element={<UserDashboard />} />
-            <Route path="/user/payment/:planId" element={<PaymentPage />} />
-            
 
+            {/* Payment Route (without sidebar) */}
+            <Route path="payment/:planId" element={<PaymentPage />} />
+
+            {/* Dashboard Route - UserDashboard handles its own nested routing */}
+            <Route path="dashboard/*" element={<UserDashboard />} />
           </Route>
 
           {/* ================= ADMIN ROUTES ================= */}
@@ -84,10 +85,10 @@ export default function App() {
           >
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="offers" element={<AdminOffers />} />
-            <Route path="users" element={<UserManagement />} />  
-            <Route path="AdminPaymentDashboard" element={<AdminPaymentDashboard />} />  
-            <Route path="PaymentSettings" element={<AdminPaymentSettings />} />  
-            <Route path="TemplateManager" element={<TemplateManager />} />  
+            <Route path="users" element={<UserManagement />} />
+            <Route path="AdminPaymentDashboard" element={<AdminPaymentDashboard />} />
+            <Route path="PaymentSettings" element={<AdminPaymentSettings />} />
+            <Route path="TemplateManager" element={<TemplateManager />} />
           </Route>
 
         </Routes>

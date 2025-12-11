@@ -8,6 +8,8 @@ const AdminPaymentDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState(null);
 
   // Fetch payments from API
   useEffect(() => {
@@ -73,11 +75,16 @@ const AdminPaymentDashboard = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this payment?')) return;
+  const handleDeleteClick = (payment) => {
+    setPaymentToDelete(payment);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!paymentToDelete) return;
 
     try {
-      const response = await fetch(`http://localhost:8080/api/v1/admin/manual-payments/${id}`, {
+      const response = await fetch(`http://localhost:8080/api/v1/admin/manual-payments/${paymentToDelete._id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -85,7 +92,9 @@ const AdminPaymentDashboard = () => {
       });
 
       if (response.ok) {
-        fetchPayments();
+        await fetchPayments();
+        setShowDeleteModal(false);
+        setPaymentToDelete(null);
       }
     } catch (error) {
       console.error('Error deleting payment:', error);
@@ -768,7 +777,7 @@ const AdminPaymentDashboard = () => {
                           <FileText className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(payment._id)}
+                          onClick={() => handleDeleteClick(payment)}
                           className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
                           title="Delete"
                         >
@@ -842,9 +851,13 @@ const AdminPaymentDashboard = () => {
                 <div>
                   <p className="text-sm text-gray-600 mb-2">Payment Screenshot</p>
                   <img 
-                    src={selectedPayment.screenshotUrl} 
+                    src={`http://localhost:8080${selectedPayment.screenshotUrl}`}
                     alt="Payment proof" 
                     className="w-full rounded-lg border"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect fill="%23ddd" width="200" height="200"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%23999">Image not found</text></svg>';
+                    }}
                   />
                 </div>
               )}
@@ -868,6 +881,70 @@ const AdminPaymentDashboard = () => {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && paymentToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl transform transition-all">
+            <div className="p-8">
+              <div className="flex justify-center mb-6">
+                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-8 h-8 text-red-600" />
+                </div>
+              </div>
+              
+              <h2 className="text-2xl font-bold text-gray-900 text-center mb-3">
+                Delete Payment?
+              </h2>
+              
+              <p className="text-gray-600 text-center mb-2">
+                Are you sure you want to delete this payment from
+              </p>
+              <p className="text-gray-900 font-semibold text-center mb-6">
+                {paymentToDelete.userId?.fullName || 'N/A'}
+              </p>
+              
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-600">Invoice ID:</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    #INV-{paymentToDelete._id.slice(-8).toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Amount:</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {paymentToDelete.currency} {paymentToDelete.amount}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-sm text-red-600 text-center mb-6 font-medium">
+                This action cannot be undone.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setPaymentToDelete(null);
+                  }}
+                  className="flex-1 bg-gray-100 text-gray-700 px-4 py-3 rounded-lg hover:bg-gray-200 transition font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  className="flex-1 bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700 transition font-medium flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
