@@ -12,7 +12,6 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
-  LogIn, // Added for the redirect card
 } from "lucide-react";
 
 // --- REVISED TOASTER SUCCESS COMPONENT ---
@@ -21,7 +20,7 @@ function RedirectSuccessCard({ onComplete }) {
 
   useEffect(() => {
     if (countdown === 0) {
-      onComplete(); // Execute redirect after countdown
+      onComplete();
       return;
     }
 
@@ -32,9 +31,7 @@ function RedirectSuccessCard({ onComplete }) {
     return () => clearTimeout(timer);
   }, [countdown, onComplete]);
 
-  // keyframes and transition for a smooth entry/exit (tailwind needs config for this, but we'll use simple classes)
   return (
-    // REVISED: fixed, top-center positioning, small padding, no black overlay
     <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 p-2 pointer-events-none">
       <div 
         className="bg-white p-4 rounded-xl shadow-2xl border border-green-200 
@@ -63,8 +60,8 @@ export default function PremiumAuth() {
   const [mode, setMode] = useState("signin");
   const [loading, setLoading] = useState(false);
   const [checkingPhone, setCheckingPhone] = useState(false);
-  const [phoneStatus, setPhoneStatus] = useState(null); // null, 'verified', 'not-found', 'unavailable'
-  const [showSuccessCard, setShowSuccessCard] = useState(false); // State for success card
+  const [phoneStatus, setPhoneStatus] = useState(null);
+  const [showSuccessCard, setShowSuccessCard] = useState(false);
 
   const [form, setForm] = useState({
     fullName: "",
@@ -77,7 +74,7 @@ export default function PremiumAuth() {
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
     if (e.target.name === "phone") {
-      setPhoneStatus(null); // Clear status when user types
+      setPhoneStatus(null);
     }
   };
 
@@ -129,10 +126,11 @@ export default function PremiumAuth() {
   };
 
   /* ------------------------------------------------------
-    LOGIN HANDLER 
+    LOGIN HANDLER - UPDATED TO REDIRECT TO DASHBOARD
   ------------------------------------------------------ */
   const handleLogin = async (e) => {
     e.preventDefault();
+    setLoading(true);
 
     try {
       const res = await fetch("http://localhost:8080/auth/login", {
@@ -142,15 +140,27 @@ export default function PremiumAuth() {
       });
 
       const data = await res.json();
-      if (!res.ok) return alert(data.message || "Login failed");
+      
+      if (!res.ok) {
+        setLoading(false);
+        return alert(data.message || "Login failed");
+      }
 
+      // Store credentials
       localStorage.setItem("token", data.token);
       localStorage.setItem("role", data.user.role);
       localStorage.setItem("user", JSON.stringify(data.user));
 
-      if (data.user.role === "admin") window.location.href = "/admin/dashboard";
-      else window.location.href = "/user/pricing";
+      // Redirect based on role
+      if (data.user.role === "admin") {
+        window.location.href = "/admin/dashboard";
+      } else {
+        // UPDATED: Always redirect to dashboard
+        // UserDashboard will handle checking for active plan
+        window.location.href = "/user/dashboard";
+      }
     } catch (err) {
+      setLoading(false);
       alert("Server error");
     }
   };
@@ -167,12 +177,10 @@ export default function PremiumAuth() {
       return alert("Please enter your phone number.");
     }
     
-    // Basic validation check to ensure all fields are non-empty
     if (!form.fullName || !form.email || !form.password || !form.usage) {
-        setLoading(false);
-        return alert("Please fill out all required fields.");
+      setLoading(false);
+      return alert("Please fill out all required fields.");
     }
-
 
     try {
       const res = await fetch("http://localhost:8080/auth/signup", {
@@ -188,6 +196,7 @@ export default function PremiumAuth() {
       });
 
       const data = await res.json();
+      
       if (!res.ok) {
         setLoading(false);
         return alert(data.message || "Signup failed");
@@ -203,20 +212,18 @@ export default function PremiumAuth() {
     }
   };
   
-  // Handler passed to the success card to execute the final action (switch mode)
+  // Handler to redirect after success card countdown
   const handleRedirect = () => {
-      // Clear all fields except email, switch mode, and hide card
-      setForm({ 
-        fullName: "", 
-        email: form.email, // Pre-fill email for signin
-        password: "", 
-        phone: "", 
-        usage: "" 
-      });
-      setMode("signin");
-      setShowSuccessCard(false);
+    setForm({ 
+      fullName: "", 
+      email: form.email,
+      password: "", 
+      phone: "", 
+      usage: "" 
+    });
+    setMode("signin");
+    setShowSuccessCard(false);
   };
-
 
   // Get status display info
   const getPhoneStatusDisplay = () => {
@@ -250,7 +257,6 @@ export default function PremiumAuth() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-gray-100 flex items-center justify-center px-6 py-12">
-      {/* RENDER SUCCESS CARD AS A MINIMAL TOAST NOTIFICATION */}
       {showSuccessCard && <RedirectSuccessCard onComplete={handleRedirect} />} 
       
       <div className="w-full max-w-6xl bg-white shadow-2xl rounded-3xl overflow-hidden border border-gray-200 grid grid-cols-1 md:grid-cols-2">
@@ -352,6 +358,7 @@ export default function PremiumAuth() {
                     value={form.email}
                     className="bg-transparent outline-none w-full text-gray-800"
                     placeholder="you@example.com"
+                    required
                   />
                 </div>
               </div>
@@ -367,20 +374,21 @@ export default function PremiumAuth() {
                     value={form.password}
                     className="bg-transparent outline-none w-full text-gray-800"
                     placeholder="••••••••"
+                    required
                   />
                 </div>
               </div>
 
               <button 
                 type="submit"
-                className="w-full bg-gray-900 text-white py-3 rounded-xl text-lg font-semibold shadow hover:scale-[1.01] transition-all flex items-center justify-center gap-2"
+                disabled={loading}
+                className="w-full bg-gray-900 text-white py-3 rounded-xl text-lg font-semibold shadow hover:scale-[1.01] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Continue <ArrowRight size={20} />
+                {loading ? "Signing in..." : "Continue"} <ArrowRight size={20} />
               </button>
             </form>
           )}
 
-          
           {/* Signup Form */}
           {mode === "signup" && (
             <form onSubmit={handleSignup} className="space-y-6">
@@ -394,6 +402,7 @@ export default function PremiumAuth() {
                     value={form.fullName}
                     className="bg-transparent outline-none w-full text-gray-800"
                     placeholder="Rohan Jangir"
+                    required
                   />
                 </div>
               </div>
@@ -409,6 +418,7 @@ export default function PremiumAuth() {
                     value={form.email}
                     className="bg-transparent outline-none w-full text-gray-800"
                     placeholder="you@example.com"
+                    required
                   />
                 </div>
               </div>
@@ -424,6 +434,7 @@ export default function PremiumAuth() {
                     value={form.password}
                     className="bg-transparent outline-none w-full text-gray-800"
                     placeholder="Create a strong password"
+                    required
                   />
                 </div>
               </div>
@@ -435,6 +446,7 @@ export default function PremiumAuth() {
                   onChange={handleChange}
                   value={form.usage}
                   className="bg-gray-100 p-3 rounded-xl outline-none w-full text-gray-700 mt-2"
+                  required
                 >
                   <option value="">Select an option</option>
                   <option>Chatbot automation</option>
@@ -458,13 +470,13 @@ export default function PremiumAuth() {
                     value={form.phone}
                     className="bg-transparent outline-none w-full text-gray-800"
                     placeholder="+91 98765 43210"
+                    required
                   />
                   {checkingPhone && (
                     <div className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full" />
                   )}
                 </div>
                 
-                {/* Status Display */}
                 {statusDisplay && (
                   <div className={`flex items-start gap-2 mt-3 p-3 rounded-lg ${statusDisplay.bgColor}`}>
                     <statusDisplay.icon size={18} className={`mt-0.5 flex-shrink-0 ${statusDisplay.color}`} />

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 // WEBSITE
 import LandingPage from "./website/pages/LandingPage";
@@ -72,6 +72,9 @@ export default function App() {
 
             {/* Dashboard Route - UserDashboard handles its own nested routing */}
             <Route path="dashboard/*" element={<UserDashboard />} />
+
+            {/* Default redirect to dashboard */}
+            <Route index element={<Navigate to="/user/dashboard" replace />} />
           </Route>
 
           {/* ================= ADMIN ROUTES ================= */}

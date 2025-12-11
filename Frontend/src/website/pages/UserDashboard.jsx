@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import QRCode from 'qrcode';
@@ -8,6 +8,7 @@ import UserNavbar from './UserNavbar';
 import DashboardOverview from './DashboardOverview';
 import WhatsAppConnect from './WhatsAppConnect';
 import APIKeyPage from './APIKeyPage';
+import BillingPage from './BillingPage';
 
 const getUserId = () => {
   const token = localStorage.getItem("token");
@@ -27,6 +28,7 @@ const UserDashboard = () => {
   const [apiKey, setApiKey] = useState(null);
   const [loadingQR, setLoadingQR] = useState(false);
   const [loadingApiKey, setLoadingApiKey] = useState(false);
+  const [checkingPlan, setCheckingPlan] = useState(true);
 
   const userId = getUserId();
 
@@ -102,6 +104,7 @@ const UserDashboard = () => {
 
     const fetchPlan = async () => {
       try {
+        setCheckingPlan(true);
         const { data } = await axios.get(
           "http://localhost:8080/user/active-plan",
           { headers: { Authorization: `Bearer ${token}` } }
@@ -109,6 +112,9 @@ const UserDashboard = () => {
         setActivePlan(data);
       } catch (error) {
         console.error('Failed to fetch plan:', error);
+        setActivePlan(null);
+      } finally {
+        setCheckingPlan(false);
       }
     };
 
@@ -137,6 +143,23 @@ const UserDashboard = () => {
 
     return () => socket.disconnect();
   }, [userId]);
+
+  // Show loading while checking for active plan
+  if (checkingPlan) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect to pricing if no active plan
+  if (!activePlan) {
+    return <Navigate to="/user/pricing" replace />;
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -177,6 +200,10 @@ const UserDashboard = () => {
                 regenerateApiKey={regenerateApiKey}
               />
             } 
+          />
+          <Route 
+            path="/billing" 
+            element={<BillingPage />} 
           />
         </Routes>
       </div>

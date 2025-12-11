@@ -1,14 +1,74 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Zap, Calendar, CheckCircle, XCircle, Phone, Key, Wifi, CreditCard, Settings as SettingsIcon } from 'lucide-react';
+import { Zap, Calendar, CheckCircle, XCircle, Phone, Key, Wifi, CreditCard, ArrowUpCircle } from 'lucide-react';
 
 const DashboardOverview = ({ activePlan, whatsAppConnected, phoneNumber, apiKey }) => {
+  // Calculate days remaining
+  const getDaysRemaining = () => {
+    if (!activePlan?.expiryAt) return null;
+    const expiry = new Date(activePlan.expiryAt);
+    const today = new Date();
+    const diff = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+    return diff;
+  };
+
+  const daysRemaining = getDaysRemaining();
+  const isExpiringSoon = daysRemaining !== null && daysRemaining <= 7;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard Overview</h1>
-        <p className="text-gray-600 mt-1">Welcome back! Here's your account summary</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard Overview</h1>
+          <p className="text-gray-600 mt-1">Welcome back! Here's your account summary</p>
+        </div>
+        <Link 
+          to="/user/pricing"
+          className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition shadow-lg"
+        >
+          <ArrowUpCircle size={20} />
+          Upgrade Plan
+        </Link>
       </div>
+
+      {/* Expiry Warning Banner */}
+      {isExpiringSoon && daysRemaining > 0 && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-yellow-800">
+                Your plan expires in {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'}
+              </p>
+              <p className="text-sm text-yellow-700 mt-1">
+                <Link to="/user/pricing" className="underline font-semibold">Renew now</Link> to continue using all features
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {daysRemaining !== null && daysRemaining <= 0 && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              <XCircle className="h-5 w-5 text-red-400" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-red-800">
+                Your plan has expired
+              </p>
+              <p className="text-sm text-red-700 mt-1">
+                <Link to="/user/pricing" className="underline font-semibold">Choose a plan</Link> to continue using the service
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-6">
         {/* Subscription Card */}
@@ -114,8 +174,8 @@ const DashboardOverview = ({ activePlan, whatsAppConnected, phoneNumber, apiKey 
             <CreditCard className="w-8 h-8 mx-auto mb-2 text-gray-600" />
             <p className="font-medium text-gray-900">View Billing</p>
           </Link>
-          <Link to="/user/pricing" className="p-4 border border-gray-200 rounded-xl hover:border-black transition text-center">
-            <Zap className="w-8 h-8 mx-auto mb-2 text-gray-600" />
+          <Link to="/user/pricing" className="p-4 border border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition text-center">
+            <ArrowUpCircle className="w-8 h-8 mx-auto mb-2 text-purple-600" />
             <p className="font-medium text-gray-900">Upgrade Plan</p>
           </Link>
         </div>
