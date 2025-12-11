@@ -53,6 +53,11 @@ const AdminLayout = () => {
         path: "/admin/users",
       },
       {
+        name: "Payment",
+        icon: <FileText size={20} />,
+        path: "/admin/AdminPaymentDashboard",
+      },
+      {
         name: "Payment Settings",
         icon: <Cog size={20} />,
         path: "/admin/PaymentSettings",
