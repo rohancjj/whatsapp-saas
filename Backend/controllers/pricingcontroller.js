@@ -6,25 +6,29 @@ import User from "../models/User.js";
 
 export const createPlan = async (req, res) => {
   try {
-    const plan = await Pricing.create(req.body);
+    const body = req.body;
 
-    
-    await Notifications.sendSystemTemplateToAll(
-      SYSTEM_EVENTS.NEW_PLAN_CREATED,
-      {
-        planName: plan.name,
-        price: plan.price,
-        messages: plan.messages,
-      }
-    );
+    const planData = {
+      name: body.name,
+      price: Number(body.price),
+      messages: Number(body.messages),
+      apiAccess: String(body.apiAccess),
+      supportLevel: body.supportLevel,
+      features: Array.isArray(body.features) ? body.features : [],
+      isFeatured: Boolean(body.isFeatured),
+      active: body.active !== undefined ? Boolean(body.active) : true,
+    };
 
-    res.json({ message: "Plan created and users notified", plan });
+    const plan = await Pricing.create(planData);
+
+    res.json({ message: "Plan created", plan });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error creating plan" });
+    console.error("CREATE PLAN ERROR:", err);
+    res.status(500).json({ message: "Error creating plan", error: err.message });
   }
 };
+
 
 export const getPlans = async (req, res) => {
   try {

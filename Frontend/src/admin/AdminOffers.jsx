@@ -6,12 +6,14 @@ export default function AdminOffers() {
   const [plans, setPlans] = useState([]);
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
 
   const [form, setForm] = useState({
     name: "",
     price: "",
     messages: "",
-    apiAccess: "",
+    apiAccess: "none",
     supportLevel: "",
     features: "",
     isFeatured: false,
@@ -51,6 +53,8 @@ export default function AdminOffers() {
       },
       body: JSON.stringify({
         ...form,
+        price: Number(form.price),
+        messages: Number(form.messages),
         features: form.features.split(",").map((f) => f.trim()),
       }),
     });
@@ -62,19 +66,7 @@ export default function AdminOffers() {
     fetchPlans();
   };
 
-  // ======================== DELETE PLAN ========================
-  const deletePlan = async (id) => {
-    if (!confirm("Delete this plan?")) return;
-
-    await fetch(`http://localhost:8080/pricing/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    fetchPlans();
-  };
-
-  // ======================== EDIT BUTTON OPEN FORM ========================
+  // ======================== OPEN EDIT MODAL ========================
   const openEditModal = (plan) => {
     setEditId(plan._id);
     setForm({
@@ -100,6 +92,8 @@ export default function AdminOffers() {
       },
       body: JSON.stringify({
         ...form,
+        price: Number(form.price),
+        messages: Number(form.messages),
         features: form.features.split(",").map((f) => f.trim()),
       }),
     });
@@ -108,6 +102,22 @@ export default function AdminOffers() {
 
     alert("Plan updated!");
     setIsEditing(false);
+    fetchPlans();
+  };
+
+  // ======================== DELETE CONFIRMATION ========================
+  const askDelete = (id) => {
+    setDeleteId(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    await fetch(`http://localhost:8080/pricing/${deleteId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    setShowDeleteModal(false);
     fetchPlans();
   };
 
@@ -157,6 +167,14 @@ export default function AdminOffers() {
         </Modal>
       )}
 
+      {/* DELETE MODAL */}
+      {showDeleteModal && (
+        <DeleteModal
+          close={() => setShowDeleteModal(false)}
+          confirm={confirmDelete}
+        />
+      )}
+
       {/* PLAN LIST */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {plans.map((plan) => (
@@ -190,7 +208,7 @@ export default function AdminOffers() {
               </button>
 
               <button
-                onClick={() => deletePlan(plan._id)}
+                onClick={() => askDelete(plan._id)}
                 className="p-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white"
               >
                 <Trash size={18} />
@@ -203,16 +221,51 @@ export default function AdminOffers() {
   );
 }
 
-/* ======================== REUSABLE INPUT FORM ======================== */
+/* ======================== REUSABLE FORM ======================== */
 const FormFields = ({ form, handleChange }) => (
   <div className="space-y-4">
-    {["name", "price", "messages", "apiAccess", "supportLevel", "features"].map((key) => (
-      <div key={key}>
-        <label className="text-sm text-slate-600 capitalize">{key.replace("_", " ")}</label>
-        <input name={key} value={form[key]} onChange={handleChange} className="p-3 border rounded-xl w-full" />
-      </div>
-    ))}
+    
+    {/* NAME */}
+    <div>
+      <label>Name</label>
+      <input name="name" value={form.name} onChange={handleChange} className="p-3 border rounded-xl w-full" />
+    </div>
 
+    {/* PRICE */}
+    <div>
+      <label>Price (₹)</label>
+      <input type="number" name="price" value={form.price} onChange={handleChange} className="p-3 border rounded-xl w-full" />
+    </div>
+
+    {/* MESSAGES */}
+    <div>
+      <label>Messages</label>
+      <input type="number" name="messages" value={form.messages} onChange={handleChange} className="p-3 border rounded-xl w-full" />
+    </div>
+
+    {/* API ACCESS */}
+    <div>
+      <label>API Access</label>
+      <select name="apiAccess" value={form.apiAccess} onChange={handleChange} className="p-3 border rounded-xl w-full">
+        <option value="none">None</option>
+        <option value="basic">Basic</option>
+        <option value="full">Full</option>
+      </select>
+    </div>
+
+    {/* SUPPORT LEVEL */}
+    <div>
+      <label>Support Level</label>
+      <input name="supportLevel" value={form.supportLevel} onChange={handleChange} className="p-3 border rounded-xl w-full" />
+    </div>
+
+    {/* FEATURES */}
+    <div>
+      <label>Features (comma separated)</label>
+      <input name="features" value={form.features} onChange={handleChange} className="p-3 border rounded-xl w-full" />
+    </div>
+
+    {/* FEATURED */}
     <div className="flex items-center gap-2">
       <input type="checkbox" name="isFeatured" checked={form.isFeatured} onChange={handleChange} />
       <label>Featured</label>
@@ -233,6 +286,35 @@ const Modal = ({ children, title, close, submit }) => (
       <button onClick={submit} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white mt-6 py-3 rounded-xl flex justify-center gap-2">
         <Save size={20} /> Save
       </button>
+    </motion.div>
+  </div>
+);
+
+/* ======================== DELETE CONFIRMATION POPUP ======================== */
+const DeleteModal = ({ close, confirm }) => (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm"
+    >
+      <h2 className="text-xl font-semibold mb-3 text-center">Confirm Deletion</h2>
+      <p className="text-center text-slate-600 mb-6">Are you sure you want to delete this plan?</p>
+
+      <div className="flex gap-3">
+        <button
+          onClick={close}
+          className="w-1/2 bg-gray-300 hover:bg-gray-400 text-black py-2 rounded-xl"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={confirm}
+          className="w-1/2 bg-red-600 hover:bg-red-700 text-white py-2 rounded-xl"
+        >
+          Delete
+        </button>
+      </div>
     </motion.div>
   </div>
 );
