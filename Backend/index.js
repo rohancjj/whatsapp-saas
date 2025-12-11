@@ -6,7 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import http from "http";
 import { Server } from "socket.io";
-
+import WhatsAppSession from "./models/WhatsAppSession.js";
 import whatsappRoutes from "./routes/whatsappRoutes.js";
 import authroutes from "./routes/authroutes.js";
 import pricingroutes from "./routes/pricingroutes.js";
@@ -50,40 +50,70 @@ const io = new Server(server, {
 app.set("io", io);
 
 
+
 io.on("connection", (socket) => {
   console.log("🔌 Client connected:", socket.id);
+
+  // Track which user this socket belongs to
+  let currentUserId = null;
 
   const sendInitialStatus = () => {
     const adminStatus = getAdminConnectionStatus();
     console.log("📡 Sending status to new client:", adminStatus);
     
     if (adminStatus.connected && adminStatus.phone) {
-     
       socket.emit("admin_connected", { phoneNumber: adminStatus.phone });
-      socket.emit("admin_qr", null); 
+      socket.emit("admin_qr", null);
       console.log(`✅ Sent connected status to ${socket.id}: ${adminStatus.phone}`);
     } else {
-     
       socket.emit("admin_disconnected");
       console.log(`📤 Sent disconnected status to ${socket.id}`);
-      
-
-      
     }
   };
 
-
   setTimeout(sendInitialStatus, 500);
 
-
+  // Handle user joining their room
   socket.on("join", (userId) => {
     if (!userId) return;
+    
+    // Leave previous room if exists
+    if (currentUserId && currentUserId !== userId) {
+      socket.leave(currentUserId);
+      console.log(`📤 Socket ${socket.id} left room ${currentUserId}`);
+    }
+    
+    // Join new room
     socket.join(userId);
-    console.log(`📌 User ${userId} joined their socket room.`);
+    currentUserId = userId;
+    console.log(`📌 Socket ${socket.id} joined room ${userId}`);
+    
+    // Send current WhatsApp status for this user
+    WhatsAppSession.findOne({ userId })
+      .then(session => {
+        if (session && session.connected) {
+          socket.emit("whatsapp_connected", { 
+            phoneNumber: session.phoneNumber 
+          });
+          console.log(`✅ Sent WhatsApp status to ${userId}: connected`);
+        }
+      })
+      .catch(err => console.error("Error fetching session:", err));
   });
 
-  socket.on("disconnect", () => {
-    console.log("❌ Client disconnected:", socket.id);
+  // Handle disconnection - DON'T close WhatsApp connection
+  socket.on("disconnect", (reason) => {
+    console.log(`❌ Client disconnected: ${socket.id}, reason: ${reason}`);
+    console.log(`⚠️ WhatsApp connection for user ${currentUserId} remains active`);
+    // Note: We do NOT disconnect WhatsApp here
+    // WhatsApp stays connected on the server side
+  });
+
+  // Optional: Add explicit logout event
+  socket.on("user_logout", async (userId) => {
+    console.log(`🚪 User ${userId} explicitly logged out`);
+    // Here you could optionally disconnect WhatsApp if desired
+    // But for your use case, keep it connected
   });
 });
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Wifi, Key, CreditCard, Settings, LogOut } from 'lucide-react';
+import { disconnectUserSocket } from './UserDashboard';
 
 const UserNavbar = () => {
   const location = useLocation();
@@ -14,8 +15,15 @@ const UserNavbar = () => {
   ];
 
   const handleLogout = () => {
+    // CRITICAL: Disconnect socket before clearing storage
+    disconnectUserSocket();
+    
+    // Clear all user data
     localStorage.removeItem('token');
     localStorage.removeItem('role');
+    localStorage.removeItem('user');
+    
+    // Redirect to auth page
     window.location.href = '/auth';
   };
 

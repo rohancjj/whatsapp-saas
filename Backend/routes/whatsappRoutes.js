@@ -8,7 +8,6 @@ import WhatsAppSession from "../models/WhatsAppSession.js";
 import { resetIfNeeded } from "../utils/resetMessageLimit.js";
 import mime from "mime-types";
 import { createInstanceForUser, getUserSock } from "../services/whatsappManager.js";
-import { getAdminSock, initializeAdminWhatsApp } from "../services/adminWhatsapp.js";
 
 const router = express.Router();
 const generateApiKey = () => `wa_${crypto.randomBytes(32).toString("hex")}`;
@@ -18,7 +17,6 @@ const clearAllSessions = () => {
   const sessionsDir = path.join(process.cwd(), "wa_sessions");
   try {
     if (fs.existsSync(sessionsDir)) {
-      // Clear all subdirectories
       const files = fs.readdirSync(sessionsDir);
       files.forEach(file => {
         const filePath = path.join(sessionsDir, file);
@@ -33,6 +31,44 @@ const clearAllSessions = () => {
     console.error("❌ Failed to clear sessions:", err);
   }
 };
+
+/* ===========================
+   GET API KEY - FIXED
+===========================*/
+router.get("/api-key", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log(`🔑 Fetching API key for user: ${userId}`);
+
+    // Get session from database
+    const session = await WhatsAppSession.findOne({ userId });
+    
+    if (!session) {
+      console.log(`⚠️ No session found for user ${userId}`);
+      return res.json({ 
+        apiKey: null, 
+        connected: false, 
+        phoneNumber: null 
+      });
+    }
+
+    console.log(`✅ Found session for user ${userId}:`, {
+      connected: session.connected,
+      hasApiKey: !!session.apiKey,
+      phoneNumber: session.phoneNumber
+    });
+
+    res.json({
+      apiKey: session.apiKey || null,
+      connected: session.connected || false,
+      phoneNumber: session.phoneNumber || null
+    });
+
+  } catch (err) {
+    console.error("❌ Error fetching API key:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 /* ===========================
    LINK WHATSAPP
@@ -56,13 +92,64 @@ router.post("/link", authMiddleware, async (req, res) => {
     let session = await WhatsAppSession.findOne({ userId });
     let apiKey = session?.apiKey || generateApiKey();
 
-    await User.findByIdAndUpdate(userId, { "activePlan.apiKey": apiKey });
-    await WhatsAppSession.findOneAndUpdate({ userId }, { apiKey, connected: false, updatedAt: new Date() }, { upsert: true });
+    console.log(`🔑 Generated/Retrieved API key for user ${userId}: ${apiKey.slice(0, 20)}...`);
 
-    await createInstanceForUser(io, { ...user.toObject(), activePlan: { ...user.activePlan, apiKey } });
+    // Update user's active plan with API key
+    await User.findByIdAndUpdate(userId, { "activePlan.apiKey": apiKey });
+    
+    // Update or create session with API key
+    await WhatsAppSession.findOneAndUpdate(
+      { userId }, 
+      { 
+        apiKey, 
+        connected: false, 
+        updatedAt: new Date() 
+      }, 
+      { upsert: true }
+    );
+
+    await createInstanceForUser(io, { 
+      ...user.toObject(), 
+      activePlan: { ...user.activePlan, apiKey } 
+    });
 
     res.json({ message: "Scan QR Code in WhatsApp", apiKey });
   } catch (err) {
+    console.error("❌ Link error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ===========================
+   REGENERATE API KEY
+===========================*/
+router.post("/regenerate-key", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const newApiKey = generateApiKey();
+
+    console.log(`🔄 Regenerating API key for user ${userId}`);
+
+    // Update session
+    await WhatsAppSession.findOneAndUpdate(
+      { userId },
+      { apiKey: newApiKey, updatedAt: new Date() },
+      { upsert: true }
+    );
+
+    // Update user's active plan
+    await User.findByIdAndUpdate(userId, { "activePlan.apiKey": newApiKey });
+
+    console.log(`✅ New API key generated: ${newApiKey.slice(0, 20)}...`);
+
+    res.json({ 
+      success: true, 
+      apiKey: newApiKey,
+      message: "API key regenerated successfully" 
+    });
+
+  } catch (err) {
+    console.error("❌ Regenerate key error:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -241,14 +328,15 @@ router.post("/webhook", async (req, res) => {
 });
 
 /* ===========================
-   DISCONNECT ADMIN WHATSAPP - FIXED
+   DISCONNECT WHATSAPP
 ===========================*/
 router.post("/disconnect", authMiddleware, async (req, res) => {
   try {
+    const userId = req.user.id;
     const io = req.app.get("io");
-    const sock = getAdminSock();
+    const sock = getUserSock(userId);
 
-    console.log("🚫 Disconnect request received");
+    console.log(`🚫 Disconnect request for user: ${userId}`);
 
     // Step 1: Logout if session exists
     if (sock && sock.user) {
@@ -256,7 +344,7 @@ router.post("/disconnect", authMiddleware, async (req, res) => {
         await sock.logout(); 
         console.log("✅ Logged out successfully");
       } catch (err) {
-        console.log("⚠️ Logout error (might already be logged out):", err.message);
+        console.log("⚠️ Logout error:", err.message);
       }
     }
 
@@ -266,25 +354,25 @@ router.post("/disconnect", authMiddleware, async (req, res) => {
       try { sock.end?.(); } catch {}
     }
 
-    // Step 3: Clear ALL session files (THIS IS THE KEY FIX)
-    clearAllSessions();
+    // Step 3: Clear user session files
+    const sessionsDir = path.join(process.cwd(), "wa_sessions", userId);
+    if (fs.existsSync(sessionsDir)) {
+      fs.rmSync(sessionsDir, { recursive: true, force: true });
+      console.log(`🗑️ Cleared session for user ${userId}`);
+    }
 
-    // Step 4: Clean database
-    console.log("🧹 Cleaning database...");
-    await WhatsAppSession.deleteMany({});
+    // Step 4: Update database
+    await WhatsAppSession.findOneAndUpdate(
+      { userId },
+      { connected: false, phoneNumber: null }
+    );
 
     // Step 5: Emit disconnected event
-    io.emit("admin_disconnected");
-
-    // Step 6: Restart admin WhatsApp with fresh session
-    setTimeout(() => {
-      console.log("♻️ Restarting Admin WA with fresh session...");
-      initializeAdminWhatsApp(io);
-    }, 2000);
+    io.to(userId).emit("whatsapp_logged_out");
 
     res.json({ 
       success: true, 
-      message: "Admin WhatsApp disconnected. Fresh QR will be generated." 
+      message: "WhatsApp disconnected successfully" 
     });
 
   } catch (err) {

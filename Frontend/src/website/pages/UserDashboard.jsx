@@ -20,6 +20,9 @@ const getUserId = () => {
   }
 };
 
+// PERSISTENT SOCKET CONNECTION - Outside component to survive re-renders
+let globalSocket = null;
+
 const UserDashboard = () => {
   const [activePlan, setActivePlan] = useState(null);
   const [whatsAppConnected, setWhatsAppConnected] = useState(false);
@@ -121,27 +124,66 @@ const UserDashboard = () => {
     fetchPlan();
     fetchApiKey();
 
-    // Socket.io setup
-    const socket = io("http://localhost:8080");
+    // CRITICAL FIX: Use persistent socket connection
+    if (!globalSocket || !globalSocket.connected) {
+      console.log("🔌 Creating new persistent socket connection");
+      globalSocket = io("http://localhost:8080", {
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: Infinity,
+        transports: ["websocket", "polling"]
+      });
 
-    socket.on("connect", () => {
-      if (userId) socket.emit("join", userId);
-    });
+      globalSocket.on("connect", () => {
+        console.log("✅ Socket connected");
+        if (userId) {
+          globalSocket.emit("join", userId);
+          console.log(`📌 Joined room: ${userId}`);
+        }
+      });
 
-    socket.on("qr", async (qrString) => {
-      setWhatsAppQR(await QRCode.toDataURL(qrString));
-      setWhatsAppConnected(false);
-      setLoadingQR(false);
-    });
+      globalSocket.on("disconnect", (reason) => {
+        console.log("❌ Socket disconnected:", reason);
+        // Socket.io will auto-reconnect due to reconnection: true
+      });
 
-    socket.on("whatsapp_connected", (data) => {
-      setWhatsAppQR(null);
-      setWhatsAppConnected(true);
-      if (data?.phoneNumber) setPhoneNumber(data.phoneNumber);
-      fetchApiKey();
-    });
+      globalSocket.on("qr", async (qrString) => {
+        console.log("📷 QR code received");
+        setWhatsAppQR(await QRCode.toDataURL(qrString));
+        setWhatsAppConnected(false);
+        setLoadingQR(false);
+      });
 
-    return () => socket.disconnect();
+      globalSocket.on("whatsapp_connected", (data) => {
+        console.log("✅ WhatsApp connected:", data);
+        setWhatsAppQR(null);
+        setWhatsAppConnected(true);
+        if (data?.phoneNumber) setPhoneNumber(data.phoneNumber);
+        if (data?.apiKey) setApiKey(data.apiKey);
+        // Also fetch from backend to ensure consistency
+        setTimeout(() => fetchApiKey(), 1000);
+      });
+
+      globalSocket.on("whatsapp_logged_out", () => {
+        console.log("🚪 WhatsApp logged out");
+        setWhatsAppConnected(false);
+        setWhatsAppQR(null);
+        setPhoneNumber(null);
+      });
+    } else {
+      console.log("♻️ Reusing existing socket connection");
+      // Rejoin the room if socket already exists
+      if (userId) {
+        globalSocket.emit("join", userId);
+      }
+    }
+
+    // IMPORTANT: Don't disconnect socket on unmount
+    // Only disconnect when user explicitly logs out
+    return () => {
+      console.log("🔄 Component unmounting, but keeping socket alive");
+      // We intentionally do NOT call globalSocket.disconnect() here
+    };
   }, [userId]);
 
   // Show loading while checking for active plan
@@ -209,6 +251,15 @@ const UserDashboard = () => {
       </div>
     </div>
   );
+};
+
+// Export function to manually disconnect socket (call this on logout)
+export const disconnectUserSocket = () => {
+  if (globalSocket) {
+    console.log("🚪 Manually disconnecting socket on logout");
+    globalSocket.disconnect();
+    globalSocket = null;
+  }
 };
 
 export default UserDashboard;

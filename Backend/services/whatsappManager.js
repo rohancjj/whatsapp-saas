@@ -3,13 +3,11 @@ import makeWASocket, {
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
-  jidNormalizedUser
 } from "@whiskeysockets/baileys";
-
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import WhatsAppSession from "../models/WhatsAppSession.js";
-
 
 const createLogger = () => {
   const noop = () => {};
@@ -26,7 +24,6 @@ const createLogger = () => {
   };
 };
 
-
 const SESSIONS_DIR = path.join(process.cwd(), "wa_sessions");
 if (!fs.existsSync(SESSIONS_DIR)) {
   fs.mkdirSync(SESSIONS_DIR, { recursive: true });
@@ -38,17 +35,14 @@ const userInitializers = {};
 
 export const getUserSock = (userId) => userSockets[userId];
 
-
 export const checkWhatsAppNumber = async (number) => {
   try {
-    
     const clean = number.replace(/\D/g, "");
     const sanitized = clean.startsWith('+') ? clean.slice(1) : clean;
     const jid = `${sanitized}@s.whatsapp.net`;
 
     console.log(`🔍 Checking WhatsApp number: ${jid}`);
 
-    
     let sock = null;
     for (const userId in userSockets) {
       const userSock = userSockets[userId];
@@ -61,21 +55,18 @@ export const checkWhatsAppNumber = async (number) => {
 
     if (!sock) {
       console.log("⚠️ No active WhatsApp sessions available for number check");
-      return null; 
+      return null;
     }
 
-  
     const result = await sock.onWhatsApp(jid);
-    
     console.log(`✅ WhatsApp check result for ${jid}:`, result);
-
     return result?.[0]?.exists || false;
+    
   } catch (err) {
     console.error("❌ Error checking WhatsApp number:", err.message);
-    return null; 
+    return null;
   }
 };
-
 
 const clearSession = (userId) => {
   const sessionPath = path.join(SESSIONS_DIR, userId);
@@ -89,19 +80,16 @@ const clearSession = (userId) => {
   }
 };
 
-
 export const createInstanceForUser = async (io, user) => {
   const userId = user._id.toString();
   const sessionPath = path.join(SESSIONS_DIR, userId);
   const logger = createLogger();
-
 
   if (reconnectTimeouts[userId]) {
     clearTimeout(reconnectTimeouts[userId]);
     delete reconnectTimeouts[userId];
   }
 
-  
   if (userSockets[userId]) {
     const sock = userSockets[userId];
     if (sock.ws?.readyState === 1 && sock.user) return sock;
@@ -121,7 +109,6 @@ export const createInstanceForUser = async (io, user) => {
         fs.mkdirSync(sessionPath, { recursive: true });
       }
 
-      
       let version = [2, 3000, 1010];
       try {
         const v = await fetchLatestBaileysVersion();
@@ -137,12 +124,10 @@ export const createInstanceForUser = async (io, user) => {
         version,
         printQRInTerminal: false,
         browser: ["Chrome (Linux)", "", ""],
-
         auth: {
           creds: state.creds,
           keys: makeCacheableSignalKeyStore(state.keys, logger),
         },
-
         markOnlineOnConnect: false,
         syncFullHistory: false,
         fireInitQueries: false,
@@ -153,36 +138,62 @@ export const createInstanceForUser = async (io, user) => {
       userSockets[userId] = sock;
 
       sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
-        if (qr) io.to(userId).emit("qr", qr);
+        if (qr) {
+          console.log(`📷 Emitting QR code for user ${userId}`);
+          io.to(userId).emit("qr", qr);
+        }
 
         if (connection === "open") {
+          const phoneNumber = sock.user?.id?.split(":")[0];
+          
+          console.log(`✅ WhatsApp connected for user ${userId}, phone: ${phoneNumber}`);
+
+          // CRITICAL FIX: Ensure API key is preserved/generated
+          let session = await WhatsAppSession.findOne({ userId });
+          let apiKey = session?.apiKey || user.activePlan?.apiKey;
+
+          // If still no API key, generate one
+          if (!apiKey) {
+            apiKey = `wa_${crypto.randomBytes(32).toString("hex")}`;
+            console.log(`🔑 Generated new API key: ${apiKey.slice(0, 20)}...`);
+          }
+
+          // Update session with connection info AND API key
           await WhatsAppSession.findOneAndUpdate(
             { userId },
             {
               connected: true,
-              apiKey: user.activePlan?.apiKey,
-              phoneNumber: sock.user?.id?.split(":")[0],
+              apiKey: apiKey,
+              phoneNumber: phoneNumber,
               updatedAt: new Date(),
             },
             { upsert: true }
           );
 
+          console.log(`💾 Saved session for user ${userId} with API key: ${apiKey.slice(0, 20)}...`);
+
+          // Emit connection event with phone number
           io.to(userId).emit("whatsapp_connected", {
-            phoneNumber: sock.user?.id?.split(":")[0],
+            phoneNumber: phoneNumber,
+            apiKey: apiKey
           });
         }
 
         if (connection === "close") {
           const code = lastDisconnect?.error?.output?.statusCode;
+          console.log(`❌ Connection closed for user ${userId}, code: ${code}`);
 
           if (code === DisconnectReason.loggedOut) {
             clearSession(userId);
             await WhatsAppSession.updateOne({ userId }, { connected: false });
             delete userSockets[userId];
             io.to(userId).emit("whatsapp_logged_out");
+            console.log(`🚪 User ${userId} logged out`);
             return;
           }
 
+          // Auto-reconnect for other disconnection reasons
+          console.log(`🔄 Scheduling reconnect for user ${userId}`);
           reconnectTimeouts[userId] = setTimeout(() => {
             delete userSockets[userId];
             createInstanceForUser(io, user);
@@ -201,25 +212,31 @@ export const createInstanceForUser = async (io, user) => {
   return userInitializers[userId];
 };
 
-
 export const loadAllSessionsOnStart = async (io) => {
   try {
+    console.log("♻️ Loading all active WhatsApp sessions...");
     const active = await WhatsAppSession.find({ connected: true });
+
+    console.log(`📊 Found ${active.length} active sessions to restore`);
 
     for (const session of active) {
       const userId = session.userId.toString();
       const sessionPath = path.join(SESSIONS_DIR, userId);
 
       if (!fs.existsSync(sessionPath)) {
+        console.log(`⚠️ Session files missing for user ${userId}, marking as disconnected`);
         await WhatsAppSession.updateOne({ userId }, { connected: false });
         continue;
       }
 
+      console.log(`🔄 Restoring session for user ${userId}`);
       await createInstanceForUser(io, {
         _id: userId,
         activePlan: { apiKey: session.apiKey },
       });
     }
+
+    console.log("✅ Session restoration complete");
   } catch (err) {
     console.error("❌ Failed to restore WhatsApp sessions:", err);
   }
